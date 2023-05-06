@@ -1,0 +1,22 @@
+version: '3.9'
+
+networks:
+    database:
+
+
+services:
+    database:
+        image: postgres
+        restart: unless-stopped
+        environment:
+            POSTGRES_DATABASE: server
+            POSTGRES_USER: server
+            POSTGRES_PASSWORD: server
+        volumes:
+            - ./.database:/var/lib/postgresql/data
+        healthcheck:
+            test: pg_isready -h 127.0.0.1 -U $$POSTGRES_USER
+            timeout: 2s
+            retries: 20
+        networks:
+            - database
