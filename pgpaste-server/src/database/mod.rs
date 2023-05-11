@@ -1,5 +1,6 @@
 //! Models and triggers related to database management
 
+use crate::Config;
 use diesel::{Connection, PgConnection};
 use diesel_async::{
 	pooled_connection::deadpool::{Object, Pool},
@@ -7,6 +8,7 @@ use diesel_async::{
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use eyre::eyre;
+use secrecy::ExposeSecret;
 
 pub(crate) mod models;
 pub(crate) mod query;
@@ -24,8 +26,8 @@ pub(crate) type _DatabasePooledConnection = Object<AsyncPgConnection>;
 pub(crate) const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 /// Applies the migrations to the database
-pub(crate) fn run_migrations(connection: &str) -> eyre::Result<()> {
-	let mut connection = PgConnection::establish(connection)?;
+pub(crate) fn run_migrations(config: &Config) -> eyre::Result<()> {
+	let mut connection = PgConnection::establish(config.database_url.expose_secret())?;
 
 	let migrations_applied = connection
 		.run_pending_migrations(MIGRATIONS)

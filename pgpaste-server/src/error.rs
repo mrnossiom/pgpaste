@@ -2,31 +2,53 @@ use axum::{
 	http::StatusCode,
 	response::{IntoResponse, Response},
 };
+use diesel_async::pooled_connection::deadpool;
 
+#[derive(Debug, thiserror::Error)]
 pub(crate) enum ServerError {
-	Eyre(eyre::Report),
-	DatabaseError(diesel::result::Error),
-}
+	#[error(transparent)]
+	Eyre(#[from] eyre::Report),
+	#[error("Diesel error: {0}")]
+	Database(#[from] diesel::result::Error),
+	#[error("DbPool error: {0}")]
+	Pool(#[from] deadpool::PoolError),
 
-impl From<eyre::Report> for ServerError {
-	fn from(e: eyre::Report) -> Self {
-		ServerError::Eyre(e)
-	}
-}
-impl From<diesel::result::Error> for ServerError {
-	fn from(e: diesel::result::Error) -> Self {
-		ServerError::DatabaseError(e)
-	}
+	#[error(transparent)]
+	UserFacing(#[from] UserFacingServerError),
 }
 
 impl IntoResponse for ServerError {
 	fn into_response(self) -> Response {
-		let status_code = match self {
-			ServerError::DatabaseError(_) | ServerError::Eyre(_) => {
-				StatusCode::INTERNAL_SERVER_ERROR
-			}
-		};
+		tracing::error!(error = ?self);
 
-		status_code.into_response()
+		match self {
+			ServerError::Database(_) | ServerError::Eyre(_) | ServerError::Pool(_) => {
+				StatusCode::INTERNAL_SERVER_ERROR.into_response()
+			}
+			ServerError::UserFacing(error) => error.into_response(),
+		}
+	}
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum UserFacingServerError {
+	#[error("Invalid content type")]
+	InvalidContentType,
+	#[error("Invalid cert")]
+	InvalidCert,
+}
+
+impl IntoResponse for UserFacingServerError {
+	fn into_response(self) -> Response {
+		tracing::error!(error = ?self);
+
+		match self {
+			UserFacingServerError::InvalidContentType => {
+				(StatusCode::BAD_REQUEST, "Invalid content type").into_response()
+			}
+			UserFacingServerError::InvalidCert => {
+				(StatusCode::BAD_REQUEST, "Invalid cert").into_response()
+			}
+		}
 	}
 }

@@ -1,40 +1,126 @@
-use reqwest::blocking::{multipart::Form, Client};
-use serde_json::{Map, Value};
+use crate::{args::CreateArgs, config::Config};
+use pgpaste_api_types::{CreateQuery, Visibility};
+use reqwest::{blocking::Client, Url};
+use sequoia_openpgp::{
+	policy::StandardPolicy,
+	serialize::stream::{Encryptor, LiteralWriter, Message, Signer},
+	Cert,
+};
+use std::io::{stdin, Write};
 
-use crate::args::CreateArgs;
-use std::{fs::read_to_string, io::stdin, path::PathBuf};
+pub(crate) fn create(args: &CreateArgs, config: &Config) -> eyre::Result<()> {
+	// TODO
+	let key = config.keys.clone().ok_or(eyre::eyre!(""))?;
 
-pub(crate) fn create(args: &CreateArgs) -> eyre::Result<()> {
-	let content = if let Some(file) = Option::<PathBuf>::None {
-		read_to_string(file)?
+	let content = if let Some(content) = &args.content {
+		content.clone()
+	} else if let Some(file) = &args.file {
+		std::fs::read_to_string(file)?
 	} else if atty::isnt(atty::Stream::Stdin) {
-		stdin().lines().collect::<Result<Vec<_>, _>>()?.join("\n")
+		std::io::read_to_string(stdin())?
 	} else {
-		eyre::bail!("You need to provide content either via stdin or a file.");
+		eyre::bail!("I could not get paste content by a `--file`, a `--content` or stdin.")
 	};
 
-	let res = if args.private {
-		todo!()
-	} else {
-		post(&content, args)?
+	let bytes = match args.mode {
+		Visibility::Public => sign(&content, &key).map_err(|err| eyre::eyre!(Box::new(err)))?,
+		Visibility::Private => encrypt(&content, &key).map_err(|err| eyre::eyre!(Box::new(err)))?,
+		Visibility::Protected => todo!(),
 	};
 
-	println!("{}", res);
+	post(config.server.clone(), bytes, "hello", args)?;
 
 	Ok(())
 }
 
-fn post(content: &str, args: &CreateArgs) -> eyre::Result<String> {
+fn post(mut server: Url, content: Vec<u8>, slug: &str, args: &CreateArgs) -> eyre::Result<()> {
 	let client = Client::default();
 
-	let form = Form::new()
-		.text(
-			"meta",
-			serde_json::to_string(&Value::Object(Map::default()))?,
-		)
-		.text("content", content.to_owned());
+	let query = CreateQuery {
+		visibility: args.mode,
+		overwrite: None,
+	};
 
-	let response = client.post(&args.content).multipart(form).send()?;
+	server.set_path(&format!("/api/paste/{}", slug));
 
-	Ok(response.text()?)
+	let _response = client
+		// TODO
+		.post(server)
+		.query(&query)
+		.body(content)
+		.send()?;
+
+	Ok(())
+}
+
+/// Signs the given message.
+fn sign(plaintext: &str, cert: &Cert) -> sequoia_openpgp::Result<Vec<u8>> {
+	let mut signed_message = Vec::new();
+	let policy = StandardPolicy::new();
+
+	// Get the keypair to do the signing from the Cert.
+	let Some(valid_key) = cert
+		.keys()
+		.unencrypted_secret()
+		.with_policy(&policy, None)
+		.alive()
+		.revoked(false)
+		.for_signing()
+		.next() else {
+			// TODO: WTF does sequoia return anyhow errors?
+			// return Err(eyre::eyre!("no signing key found").into());
+			panic!("no signing key found");
+		};
+
+	let keypair = valid_key.key().clone().into_keypair()?;
+
+	// Start streaming an OpenPGP message.
+	let message = Message::new(&mut signed_message);
+
+	// We want to sign a literal data packet.
+	let signer = Signer::new(message, keypair).build()?;
+
+	// Emit a literal data packet.
+	let mut literal = LiteralWriter::new(signer).build()?;
+
+	// Sign the data.
+	literal.write_all(plaintext.as_bytes())?;
+
+	// Finalize the OpenPGP message to make sure that all data is
+	// written.
+	literal.finalize()?;
+
+	Ok(signed_message)
+}
+
+/// Encrypts the given message.
+fn encrypt(plaintext: &str, recipient: &Cert) -> sequoia_openpgp::Result<Vec<u8>> {
+	let mut encrypted_message = Vec::new();
+	let policy = StandardPolicy::new();
+
+	let recipients = recipient
+		.keys()
+		.with_policy(&policy, None)
+		.supported()
+		.alive()
+		.revoked(false)
+		.for_transport_encryption();
+
+	// Start streaming an OpenPGP message.
+	let message = Message::new(&mut encrypted_message);
+
+	// We want to encrypt a literal data packet.
+	let message = Encryptor::for_recipients(message, recipients).build()?;
+
+	// Emit a literal data packet.
+	let mut message = LiteralWriter::new(message).build()?;
+
+	// Encrypt the data.
+	message.write_all(plaintext.as_bytes())?;
+
+	// Finalize the OpenPGP message to make sure that all data is
+	// written.
+	message.finalize()?;
+
+	Ok(encrypted_message)
 }

@@ -1,5 +1,5 @@
-use crate::args::ReadArgs;
+use crate::{args::ReadArgs, config::Config};
 
-pub(crate) fn read(_args: &ReadArgs) -> eyre::Result<()> {
+pub(crate) fn read(_args: &ReadArgs, _config: &Config) -> eyre::Result<()> {
 	Ok(())
 }
