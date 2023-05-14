@@ -8,8 +8,7 @@ use diesel::{
 	deserialize::{self, FromSql},
 	pg::{Pg, PgValue},
 	serialize::{self, IsNull, Output, ToSql},
-	AsChangeset, AsExpression, Associations, FromSqlRow, Identifiable, Insertable, Queryable,
-	Selectable,
+	AsChangeset, AsExpression, FromSqlRow, Identifiable, Insertable, Queryable, Selectable,
 };
 use std::io::Write;
 
@@ -72,11 +71,10 @@ pub(crate) struct NewPublicKey<'a> {
 }
 
 /// Represent a single signed or encrypted paste
-#[derive(Debug, PartialEq, Eq, Queryable, Identifiable, Selectable, Associations)]
-#[diesel(table_name = pastes, belongs_to(PublicKey))]
+#[derive(Debug, PartialEq, Eq, Queryable, Identifiable, Selectable)]
+#[diesel(table_name = pastes)]
 pub(crate) struct Paste {
 	pub(crate) id: u32,
-	pub(crate) public_key_id: u32,
 
 	pub(crate) slug: String,
 	pub(crate) visibility: Visibility,
@@ -87,8 +85,6 @@ pub(crate) struct Paste {
 #[derive(Debug, Insertable, AsChangeset)]
 #[diesel(table_name = pastes)]
 pub(crate) struct NewPaste<'a> {
-	pub(crate) public_key_id: i32,
-
 	pub(crate) slug: &'a str,
 	pub(crate) visibility: &'a Visibility,
 	pub(crate) content: &'a [u8],

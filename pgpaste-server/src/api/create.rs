@@ -1,26 +1,27 @@
 use crate::{
-	database::{models::NewPaste, prelude::*, schema::pastes},
+	api::extract::MsgPack,
+	database::{models::NewPaste, prelude::*},
 	error::{ServerError, UserFacingServerError},
 	AppState,
 };
 use axum::{
 	body::Bytes,
-	extract::{Path, Query, State},
+	extract::{Query, State},
 	http::{header, HeaderMap, HeaderValue, StatusCode},
 	response::IntoResponse,
 };
 use eyre::Context;
-use pgpaste_api_types::CreateQuery;
+use pgpaste_api_types::{CreateQuery, CreateResponse};
 use sequoia_openpgp::{parse::Parse, Message};
 
 pub(crate) async fn create_signed_paste(
 	State(state): State<AppState>,
-	Path(slug): Path<String>,
 	Query(query): Query<CreateQuery>,
 	headers: HeaderMap,
 	content: Bytes,
 ) -> Result<impl IntoResponse, ServerError> {
 	let mut conn = state.database.get().await?;
+	let slug = query.slug.unwrap_or_else(|| petname::petname(4, "-"));
 
 	if let Some(content_type) = headers.get(header::CONTENT_TYPE) {
 		if content_type != HeaderValue::from_static("application/pgp-encrypted") {
@@ -32,24 +33,21 @@ pub(crate) async fn create_signed_paste(
 		.map_err(|e| tracing::error!(error = ?e))
 		.map_err(|_| ServerError::UserFacing(UserFacingServerError::InvalidCert))?;
 
-	dbg!(&cert);
+	dbg!(cert.descendants().collect::<Vec<_>>());
 
 	let paste = NewPaste {
-		public_key_id: 1,
-
 		slug: &slug,
 		visibility: &query.visibility.into(),
 		content: &content,
 	};
 
-	let id = paste
+	paste
 		.insert()
-		.returning(pastes::id)
-		.get_result::<i32>(&mut conn)
+		.execute(&mut conn)
 		.await
 		.wrap_err("Could not insert paste")?;
 
-	tracing::debug!(id = ?id, "Created paste");
+	tracing::debug!(slug = slug, "Created {:?} paste", query.visibility);
 
-	Ok((StatusCode::CREATED, id.to_string()))
+	Ok((StatusCode::CREATED, MsgPack(CreateResponse { slug })))
 }

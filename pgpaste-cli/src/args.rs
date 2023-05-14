@@ -3,6 +3,7 @@ use pgpaste_api_types::Visibility;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
+#[clap(author, version, about)]
 pub(crate) struct PGPasteArgs {
 	#[clap(subcommand)]
 	pub(crate) command: Commands,
@@ -22,12 +23,13 @@ pub(crate) enum Commands {
 
 #[derive(Debug, Args)]
 pub(crate) struct CreateArgs {
+	#[clap(long, short)]
 	pub(crate) slug: Option<String>,
 
-	#[clap(long, short, group = "content")]
+	#[clap(long, short, group = "message_content")]
 	pub(crate) content: Option<String>,
 
-	#[clap(long, short, group = "content")]
+	#[clap(long, group = "message_content")]
 	pub(crate) file: Option<PathBuf>,
 
 	#[clap(long, value_parser = to_api_visibility)]

@@ -1,2 +1,5 @@
 [workspace]
 members = ["pgpaste-*"]
+
+[workspace.dependencies]
+pgpaste-api-types = { path = "./pgpaste-api-types" }

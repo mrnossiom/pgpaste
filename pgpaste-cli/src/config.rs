@@ -7,15 +7,39 @@ use std::{fs::read_to_string, path::PathBuf};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigScheme {
+	#[serde(default = "default_server")]
 	server: String,
+
 	keys: Option<PathBuf>,
 }
 
-impl Default for ConfigScheme {
-	fn default() -> Self {
-		Self {
-			server: "https://pgpaste.org".into(),
-			keys: None,
+fn default_server() -> String {
+	"https://pgpaste.org".into()
+}
+
+impl ConfigScheme {
+	fn parse(args: &PGPasteArgs) -> eyre::Result<ConfigScheme> {
+		let path = match args.config {
+			Some(ref path) => path.clone(),
+			None => {
+				let Some(mut path) = config_local_dir() else {
+					eyre::bail!("Could not find config directory");
+				};
+
+				path.push("pgpaste.toml");
+				path
+			}
+		};
+
+		match read_to_string(path) {
+			Ok(content) => Ok(toml::from_str::<ConfigScheme>(&content)?),
+			Err(err) => {
+				if err.kind() == std::io::ErrorKind::NotFound {
+					return Ok(toml::from_str::<ConfigScheme>("")?);
+				}
+
+				Err(err.into())
+			}
 		}
 	}
 }
@@ -29,7 +53,7 @@ pub(crate) struct Config {
 
 impl Config {
 	pub(crate) fn new(args: &PGPasteArgs) -> eyre::Result<Self> {
-		let config = Self::parse_config_scheme(args)?;
+		let config = ConfigScheme::parse(args)?;
 
 		let keys = config
 			.keys
@@ -39,32 +63,5 @@ impl Config {
 		let server = Url::parse(&args.server.clone().unwrap_or(config.server))?;
 
 		Ok(Self { keys, server })
-	}
-
-	fn parse_config_scheme(args: &PGPasteArgs) -> eyre::Result<ConfigScheme> {
-		let path = match args.config {
-			Some(ref path) => path.clone(),
-			None => {
-				let Some(mut path) = config_local_dir() else {
-					eyre::bail!("Could not find config directory");
-				};
-
-				path.push("pgpaste.toml");
-				path
-			}
-		};
-
-		let content = match read_to_string(path) {
-			Ok(content) => content,
-			Err(err) => {
-				if err.kind() == std::io::ErrorKind::NotFound {
-					return Ok(ConfigScheme::default());
-				}
-
-				return Err(err.into());
-			}
-		};
-
-		Ok(toml::from_str::<ConfigScheme>(&content)?)
 	}
 }

@@ -3,9 +3,13 @@ container-name := "pgpaste-server"
 _default:
 	@just --list --unsorted --list-heading '' --list-prefix '—— '
 
-# Run your current project
-run:
-	RUST_LOG='info,pgpaste_server=debug' cargo run
+# Run the server
+run-cli *ARGS:
+	cargo run -q --bin pgpaste-cli -- --config pgpaste-cli/config.toml {{ARGS}}
+
+# Run the server
+run-server:
+	cargo run --bin pgpaste-server
 
 # Starts the docker compose file with the provided scope
 up SCOPE:

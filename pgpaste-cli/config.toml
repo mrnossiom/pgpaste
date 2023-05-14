@@ -1,1 +1,2 @@
+server = "http://localhost:3000"
 keys = "keys/key.asc"

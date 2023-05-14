@@ -14,17 +14,13 @@ pub(crate) async fn get_paste(
 	State(state): State<AppState>,
 	Path(paste_slug): Path<String>,
 ) -> Result<impl IntoResponse, ServerError> {
-	let mut conn = state
-		.database
-		.get()
-		.await
-		.wrap_err("Could not get a db handle")?;
+	let mut conn = state.database.get().await?;
 
-	let res = Paste::with_slug(&paste_slug)
+	let res: Vec<u8> = Paste::with_slug(&paste_slug)
 		.select(pastes::content)
-		.first::<Vec<u8>>(&mut conn)
+		.first(&mut conn)
 		.await
-		.wrap_err("")?;
+		.wrap_err("Paste does not exist")?;
 
 	Ok((StatusCode::OK, res))
 }

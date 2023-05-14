@@ -12,7 +12,6 @@ diesel::table! {
 
     pastes (id) {
         id -> Int4,
-        public_key_id -> Int4,
         slug -> Varchar,
         visibility -> Visibility,
         content -> Bytea,
@@ -26,8 +25,6 @@ diesel::table! {
         key -> Bytea,
     }
 }
-
-diesel::joinable!(pastes -> public_keys (public_key_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     pastes,

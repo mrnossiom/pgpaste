@@ -1,6 +1,6 @@
 use crate::{args::CreateArgs, config::Config};
-use pgpaste_api_types::{CreateQuery, Visibility};
-use reqwest::{blocking::Client, Url};
+use pgpaste_api_types::{CreateQuery, CreateResponse, Visibility};
+use reqwest::{blocking::Client, StatusCode, Url};
 use sequoia_openpgp::{
 	policy::StandardPolicy,
 	serialize::stream::{Encryptor, LiteralWriter, Message, Signer},
@@ -28,29 +28,41 @@ pub(crate) fn create(args: &CreateArgs, config: &Config) -> eyre::Result<()> {
 		Visibility::Protected => todo!(),
 	};
 
-	post(config.server.clone(), bytes, "hello", args)?;
+	let res = post(config.server.clone(), bytes, &args.slug, args)?;
+
+	println!(
+		"Your paste is available at {}",
+		config.server.join(&res.slug)?
+	);
 
 	Ok(())
 }
 
-fn post(mut server: Url, content: Vec<u8>, slug: &str, args: &CreateArgs) -> eyre::Result<()> {
+fn post(
+	mut server: Url,
+	content: Vec<u8>,
+	slug: &Option<String>,
+	args: &CreateArgs,
+) -> eyre::Result<CreateResponse> {
 	let client = Client::default();
 
 	let query = CreateQuery {
+		slug: slug.clone(),
 		visibility: args.mode,
 		overwrite: None,
 	};
 
-	server.set_path(&format!("/api/paste/{}", slug));
+	server.set_path("/api/paste");
 
-	let _response = client
-		// TODO
-		.post(server)
-		.query(&query)
-		.body(content)
-		.send()?;
+	let response = client.post(server).query(&query).body(content).send()?;
 
-	Ok(())
+	let response: CreateResponse = match response.status() {
+		StatusCode::CREATED => rmp_serde::from_slice(&response.bytes()?)?,
+		StatusCode::CONFLICT => eyre::bail!("Paste name already exists"),
+		code => eyre::bail!("Unknown error: {} ", code),
+	};
+
+	Ok(response)
 }
 
 /// Signs the given message.

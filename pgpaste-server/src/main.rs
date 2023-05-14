@@ -12,6 +12,7 @@ use std::{
 	fmt,
 };
 use tower_http::trace::TraceLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 mod api;
 mod database;
@@ -85,7 +86,13 @@ impl AppState {
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-	tracing_subscriber::fmt::init();
+	Registry::default()
+		.with(
+			EnvFilter::try_from_default_env()
+				.unwrap_or_else(|_| "info,pgpaste_server=debug".into()),
+		)
+		.with(tracing_subscriber::fmt::layer())
+		.init();
 
 	let config = Config::from_dotenv()?;
 	let state = AppState::new(config)?;

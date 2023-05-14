@@ -9,13 +9,13 @@ CREATE TABLE public_keys
 
 CREATE TABLE pastes
 (
-    id            serial PRIMARY KEY,
-    public_key_id int          NOT NULL
-        REFERENCES public_keys (id) ON DELETE RESTRICT,
+    id         serial PRIMARY KEY,
+    /*public_key_id int          NOT NULL
+        REFERENCES public_keys (id) ON DELETE RESTRICT,*/
 
-    slug          varchar(255) NOT NULL UNIQUE,
-    visibility    visibility   NOT NULL,
-    content       bytea        NOT NULL
+    slug       varchar(255) NOT NULL UNIQUE,
+    visibility visibility   NOT NULL,
+    content    bytea        NOT NULL
 
     -- created_at    date         NOT NULL,
     -- cleanup_after date         NOT NULL

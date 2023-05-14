@@ -8,8 +8,7 @@ certs/
 
 # Configuration
 .DS_Store
-.vscode/*
-!.vscode/settings.json
+.vscode/
 .idea/
 keys/
 
