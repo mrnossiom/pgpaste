@@ -1,6 +1,6 @@
 use crate::{
-	database::{models::Paste, prelude::*, schema::pastes},
-	error::ServerError,
+	database::{models::Paste, prelude::*},
+	error::{ServerError, UserFacingServerError},
 	AppState,
 };
 use axum::{
@@ -9,6 +9,10 @@ use axum::{
 	response::IntoResponse,
 };
 use eyre::Context;
+use pgpaste_api_types::api::ReadResponse;
+use std::time::SystemTime;
+
+use super::extract::MsgPack;
 
 pub(crate) async fn get_paste(
 	State(state): State<AppState>,
@@ -16,13 +20,31 @@ pub(crate) async fn get_paste(
 ) -> Result<impl IntoResponse, ServerError> {
 	let mut conn = state.database.get().await?;
 
-	let res: Vec<u8> = Paste::with_slug(&paste_slug)
-		.select(pastes::content)
-		.first(&mut conn)
+	let paste = Paste::with_slug(&paste_slug)
+		.select(Paste::as_select())
+		.first::<Paste>(&mut conn)
 		.await
-		.wrap_err("Paste does not exist")?;
+		.optional()
+		.wrap_err("Failed to load paste")?;
 
-	Ok((StatusCode::OK, res))
+	let paste = if let Some(paste) = paste {
+		// if paste.burn_at < SystemTime::now() {
+		// 	return Err(ServerError::UserFacing(UserFacingServerError::PasteBurned));
+		// }
+
+		paste
+	} else {
+		return Err(UserFacingServerError::PasteNotFound.into());
+	};
+
+	let res = ReadResponse {
+		slug: paste.slug,
+		visibility: paste.visibility.into(),
+		inner: paste.content,
+		burn_at: SystemTime::now(),
+	};
+
+	Ok((StatusCode::OK, MsgPack(res)))
 }
 
 pub(crate) async fn get_key_pastes() -> impl IntoResponse {

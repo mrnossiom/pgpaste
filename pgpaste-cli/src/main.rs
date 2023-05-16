@@ -1,3 +1,13 @@
+#![warn(
+	// clippy::missing_docs_in_private_items,
+	clippy::unwrap_used,
+	clippy::nursery,
+	clippy::pedantic,
+	// clippy::cargo,
+	rustdoc::broken_intra_doc_links
+)]
+#![allow(clippy::redundant_pub_crate)]
+
 use clap::Parser;
 use config::Config;
 

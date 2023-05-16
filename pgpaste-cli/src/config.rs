@@ -18,29 +18,30 @@ fn default_server() -> String {
 }
 
 impl ConfigScheme {
-	fn parse(args: &PGPasteArgs) -> eyre::Result<ConfigScheme> {
-		let path = match args.config {
-			Some(ref path) => path.clone(),
-			None => {
-				let Some(mut path) = config_local_dir() else {
-					eyre::bail!("Could not find config directory");
-				};
+	fn parse(args: &PGPasteArgs) -> eyre::Result<Self> {
+		let path = if let Some(ref path) = args.config {
+			path.clone()
+		} else {
+			let Some(mut path) = config_local_dir() else {
+				eyre::bail!("Could not find config directory");
+			};
 
-				path.push("pgpaste.toml");
-				path
+			path.push("pgpaste.toml");
+			path
+		};
+
+		let config = match read_to_string(path) {
+			Ok(content) => toml::from_str(&content)?,
+			Err(err) => {
+				if err.kind() != std::io::ErrorKind::NotFound {
+					return Err(err.into());
+				}
+
+				toml::from_str("")?
 			}
 		};
 
-		match read_to_string(path) {
-			Ok(content) => Ok(toml::from_str::<ConfigScheme>(&content)?),
-			Err(err) => {
-				if err.kind() == std::io::ErrorKind::NotFound {
-					return Ok(toml::from_str::<ConfigScheme>("")?);
-				}
-
-				Err(err.into())
-			}
-		}
+		Ok(config)
 	}
 }
 
@@ -62,6 +63,6 @@ impl Config {
 
 		let server = Url::parse(&args.server.clone().unwrap_or(config.server))?;
 
-		Ok(Self { keys, server })
+		Ok(Self { server, keys })
 	}
 }

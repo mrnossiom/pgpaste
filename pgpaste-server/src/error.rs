@@ -36,6 +36,11 @@ pub(crate) enum UserFacingServerError {
 	InvalidContentType,
 	#[error("Invalid cert")]
 	InvalidCert,
+
+	#[error("Paste burned")]
+	PasteBurned,
+	#[error("Paste not found")]
+	PasteNotFound,
 }
 
 impl IntoResponse for UserFacingServerError {
@@ -48,6 +53,13 @@ impl IntoResponse for UserFacingServerError {
 			}
 			UserFacingServerError::InvalidCert => {
 				(StatusCode::BAD_REQUEST, "Invalid cert").into_response()
+			}
+
+			UserFacingServerError::PasteBurned => {
+				(StatusCode::GONE, "Paste burned").into_response()
+			}
+			UserFacingServerError::PasteNotFound => {
+				(StatusCode::NOT_FOUND, "Paste not found").into_response()
 			}
 		}
 	}

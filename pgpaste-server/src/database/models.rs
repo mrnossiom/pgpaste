@@ -52,6 +52,16 @@ impl From<pgpaste_api_types::Visibility> for Visibility {
 	}
 }
 
+impl From<Visibility> for pgpaste_api_types::Visibility {
+	fn from(visibility: Visibility) -> Self {
+		match visibility {
+			Visibility::Public => pgpaste_api_types::Visibility::Public,
+			Visibility::Protected => pgpaste_api_types::Visibility::Protected,
+			Visibility::Private => pgpaste_api_types::Visibility::Private,
+		}
+	}
+}
+
 /// Represent a single public key
 #[derive(Debug, PartialEq, Eq, Queryable, Identifiable, Selectable)]
 #[diesel(table_name = public_keys)]
@@ -74,7 +84,7 @@ pub(crate) struct NewPublicKey<'a> {
 #[derive(Debug, PartialEq, Eq, Queryable, Identifiable, Selectable)]
 #[diesel(table_name = pastes)]
 pub(crate) struct Paste {
-	pub(crate) id: u32,
+	pub(crate) id: i32,
 
 	pub(crate) slug: String,
 	pub(crate) visibility: Visibility,

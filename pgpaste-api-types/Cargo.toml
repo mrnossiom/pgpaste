@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.160", features = ["derive"] }
+time = { version = "0.3.21", features = ["serde"] }
 
 [dev-dependencies]
 rmp-serde = "1.1.1"
-serde_urlencoded = "0.7.1"

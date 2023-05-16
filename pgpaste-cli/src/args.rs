@@ -1,6 +1,7 @@
 use clap::{Args, Parser, Subcommand};
+use duration_human::DurationHuman;
 use pgpaste_api_types::Visibility;
-use std::path::PathBuf;
+use std::{io::stdin, path::PathBuf, time::Duration};
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about)]
@@ -27,13 +28,51 @@ pub(crate) struct CreateArgs {
 	pub(crate) slug: Option<String>,
 
 	#[clap(long, short, group = "message_content")]
-	pub(crate) content: Option<String>,
+	content: Option<String>,
 
 	#[clap(long, group = "message_content")]
-	pub(crate) file: Option<PathBuf>,
+	file: Option<PathBuf>,
 
-	#[clap(long, value_parser = to_api_visibility)]
+	#[clap(long, short, value_parser = parsers::to_api_visibility)]
 	pub(crate) mode: Visibility,
+
+	#[clap(long, group = "time", value_parser = parsers::to_duration_human)]
+	lifetime: Option<DurationHuman>,
+	// TODO
+	#[clap(long, group = "time", value_parser = parsers::to_do::<Option<String>>)]
+	burn_date: Option<String>,
+
+	#[clap(long)]
+	pub(crate) burn_after_read: bool,
+
+	#[clap(long)]
+	pub(crate) overwrite: bool,
+}
+
+impl CreateArgs {
+	pub(crate) fn content(&self) -> eyre::Result<String> {
+		let content = if let Some(content) = &self.content {
+			content.clone()
+		} else if let Some(file) = &self.file {
+			std::fs::read_to_string(file)?
+		} else if atty::isnt(atty::Stream::Stdin) {
+			std::io::read_to_string(stdin())?
+		} else {
+			eyre::bail!("I could not get paste content by a `--file`, a `--content` or stdin.")
+		};
+
+		Ok(content)
+	}
+
+	// TODO: see if SystemTime is the right type
+	#[allow(clippy::unnecessary_wraps)]
+	pub(crate) fn burn_in(&self) -> eyre::Result<Option<Duration>> {
+		let dur: Option<Duration> = self.lifetime.as_ref().map(Into::into);
+
+		// TODO: implement and handle `burn_date`
+
+		Ok(dur)
+	}
 }
 
 #[derive(Debug, Args)]
@@ -41,11 +80,24 @@ pub(crate) struct ReadArgs {
 	pub(crate) slug: String,
 }
 
-fn to_api_visibility(visibility: &str) -> Result<Visibility, String> {
-	match visibility {
-		"public" => Ok(Visibility::Public),
-		"protected" => Ok(Visibility::Protected),
-		"private" => Ok(Visibility::Private),
-		_ => Err("Available visibilities are `public`, `protected` and `private`".into()),
+mod parsers {
+	use duration_human::DurationHuman;
+	use pgpaste_api_types::Visibility;
+
+	pub(crate) fn to_api_visibility(visibility: &str) -> Result<Visibility, String> {
+		match visibility {
+			"public" => Ok(Visibility::Public),
+			"protected" => Ok(Visibility::Protected),
+			"private" => Ok(Visibility::Private),
+			_ => Err("Available visibilities are `public`, `protected` and `private`".into()),
+		}
+	}
+
+	pub(crate) fn to_duration_human(duration: &str) -> Result<DurationHuman, String> {
+		DurationHuman::try_from(duration).map_err(|err| err.to_string())
+	}
+
+	pub(crate) fn to_do<T>(_duration: &str) -> Result<T, String> {
+		panic!()
 	}
 }

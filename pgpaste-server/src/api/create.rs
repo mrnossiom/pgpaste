@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use crate::{
 	api::extract::MsgPack,
 	database::{models::NewPaste, prelude::*},
@@ -5,31 +7,31 @@ use crate::{
 	AppState,
 };
 use axum::{
-	body::Bytes,
-	extract::{Query, State},
-	http::{header, HeaderMap, HeaderValue, StatusCode},
+	extract::State,
+	http::{header, HeaderMap, HeaderValue, Method, StatusCode},
 	response::IntoResponse,
 };
 use eyre::Context;
-use pgpaste_api_types::{CreateQuery, CreateResponse};
+use pgpaste_api_types::api::{CreateBody, CreateResponse};
 use sequoia_openpgp::{parse::Parse, Message};
 
 pub(crate) async fn create_signed_paste(
 	State(state): State<AppState>,
-	Query(query): Query<CreateQuery>,
 	headers: HeaderMap,
-	content: Bytes,
+	method: Method,
+	MsgPack(content): MsgPack<CreateBody>,
 ) -> Result<impl IntoResponse, ServerError> {
 	let mut conn = state.database.get().await?;
-	let slug = query.slug.unwrap_or_else(|| petname::petname(4, "-"));
+	let slug = content.slug.unwrap_or_else(|| petname::petname(4, "-"));
+	let _overwrite = method == Method::PUT;
 
 	if let Some(content_type) = headers.get(header::CONTENT_TYPE) {
-		if content_type != HeaderValue::from_static("application/pgp-encrypted") {
+		if content_type != HeaderValue::from_static(mime::APPLICATION_MSGPACK.as_ref()) {
 			return Err(UserFacingServerError::InvalidContentType.into());
 		}
 	}
 
-	let cert = Message::from_bytes(&content)
+	let cert = Message::from_bytes(&content.inner)
 		.map_err(|e| tracing::error!(error = ?e))
 		.map_err(|_| ServerError::UserFacing(UserFacingServerError::InvalidCert))?;
 
@@ -37,8 +39,8 @@ pub(crate) async fn create_signed_paste(
 
 	let paste = NewPaste {
 		slug: &slug,
-		visibility: &query.visibility.into(),
-		content: &content,
+		visibility: &content.visibility.into(),
+		content: &content.inner,
 	};
 
 	paste
@@ -47,7 +49,14 @@ pub(crate) async fn create_signed_paste(
 		.await
 		.wrap_err("Could not insert paste")?;
 
-	tracing::debug!(slug = slug, "Created {:?} paste", query.visibility);
+	tracing::debug!(slug = slug, "Created {:?} paste", content.visibility);
 
-	Ok((StatusCode::CREATED, MsgPack(CreateResponse { slug })))
+	Ok((
+		StatusCode::CREATED,
+		MsgPack(CreateResponse {
+			slug,
+			// TODO
+			burn_at: SystemTime::now(),
+		}),
+	))
 }

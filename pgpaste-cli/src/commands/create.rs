@@ -1,26 +1,22 @@
 use crate::{args::CreateArgs, config::Config};
-use pgpaste_api_types::{CreateQuery, CreateResponse, Visibility};
-use reqwest::{blocking::Client, StatusCode, Url};
+use pgpaste_api_types::{
+	api::{CreateBody, CreateResponse},
+	Visibility,
+};
+use reqwest::{blocking::Client, header, Method, StatusCode, Url};
+use rmp_serde::decode::from_slice;
 use sequoia_openpgp::{
 	policy::StandardPolicy,
 	serialize::stream::{Encryptor, LiteralWriter, Message, Signer},
 	Cert,
 };
-use std::io::{stdin, Write};
+use std::io::Write;
 
 pub(crate) fn create(args: &CreateArgs, config: &Config) -> eyre::Result<()> {
 	// TODO
 	let key = config.keys.clone().ok_or(eyre::eyre!(""))?;
 
-	let content = if let Some(content) = &args.content {
-		content.clone()
-	} else if let Some(file) = &args.file {
-		std::fs::read_to_string(file)?
-	} else if atty::isnt(atty::Stream::Stdin) {
-		std::io::read_to_string(stdin())?
-	} else {
-		eyre::bail!("I could not get paste content by a `--file`, a `--content` or stdin.")
-	};
+	let content = args.content()?;
 
 	let bytes = match args.mode {
 		Visibility::Public => sign(&content, &key).map_err(|err| eyre::eyre!(Box::new(err)))?,
@@ -30,10 +26,7 @@ pub(crate) fn create(args: &CreateArgs, config: &Config) -> eyre::Result<()> {
 
 	let res = post(config.server.clone(), bytes, &args.slug, args)?;
 
-	println!(
-		"Your paste is available at {}",
-		config.server.join(&res.slug)?
-	);
+	println!("Your paste is available with the slug `{}`", res.slug);
 
 	Ok(())
 }
@@ -46,20 +39,31 @@ fn post(
 ) -> eyre::Result<CreateResponse> {
 	let client = Client::default();
 
-	let query = CreateQuery {
+	let query = CreateBody {
 		slug: slug.clone(),
 		visibility: args.mode,
-		overwrite: None,
+		burn_in: args.burn_in()?,
+		inner: content,
 	};
 
 	server.set_path("/api/paste");
 
-	let response = client.post(server).query(&query).body(content).send()?;
+	let method = if args.overwrite {
+		Method::PUT
+	} else {
+		Method::POST
+	};
 
-	let response: CreateResponse = match response.status() {
-		StatusCode::CREATED => rmp_serde::from_slice(&response.bytes()?)?,
+	let response = client
+		.request(method, server)
+		.header(header::CONTENT_TYPE, "application/msgpack")
+		.body(rmp_serde::to_vec(&query)?)
+		.send()?;
+
+	let response = match response.status() {
+		StatusCode::CREATED => from_slice::<CreateResponse>(&response.bytes()?)?,
 		StatusCode::CONFLICT => eyre::bail!("Paste name already exists"),
-		code => eyre::bail!("Unknown error: {} ", code),
+		code => eyre::bail!("Unknown error: {}, {}", code, response.text()?),
 	};
 
 	Ok(response)

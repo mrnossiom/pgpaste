@@ -10,7 +10,10 @@ mod read;
 
 pub(crate) fn api_router() -> Router<AppState> {
 	Router::new()
-		.route("/paste", post(create::create_signed_paste))
+		.route(
+			"/paste",
+			post(create::create_signed_paste).put(create::create_signed_paste),
+		)
 		.route(
 			"/paste/:slug",
 			get(read::get_paste).delete(|| async { StatusCode::NOT_IMPLEMENTED }),
@@ -29,8 +32,8 @@ mod extract {
 		response::{IntoResponse, Response},
 		BoxError,
 	};
-	use bytes::{Buf, BufMut, BytesMut};
-	use rmp_serde::{Deserializer, Serializer};
+	use bytes::Buf;
+	use rmp_serde::{to_vec, Deserializer};
 	use serde::{de::DeserializeOwned, Serialize};
 
 	pub struct MsgPack<T>(pub T);
@@ -48,7 +51,7 @@ mod extract {
 
 		async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
 			if !dlhn_content_type(req.headers()) {
-				return Err(MsgPackRejection::MissingDlhnContentType);
+				return Err(MsgPackRejection::MissingMsgPackContentType);
 			}
 
 			let mut bytes = Bytes::from_request(req, state).await?.reader();
@@ -62,22 +65,18 @@ mod extract {
 
 	fn dlhn_content_type(headers: &HeaderMap) -> bool {
 		let Some(content_type) = headers.get(header::CONTENT_TYPE) else { return false; };
-
 		let Ok(content_type) = content_type.to_str() else { return false; };
+		let Ok(mime) = content_type.parse::<mime::Mime>() else { return false; };
 
-		let mime = if let Ok(mime) = content_type.parse::<mime::Mime>() {
-			mime
-		} else {
-			return false;
-		};
-
-		let is_json_content_type = mime.type_() == "application"
-			&& (mime.subtype() == "json" || mime.suffix().map_or(false, |name| name == "json"));
-
-		is_json_content_type
+		mime.type_() == "application"
+			&& (mime.subtype() == "msgpack"
+				|| mime.suffix().map_or(false, |name| name == "msgpack"))
 	}
 
-	impl<T> From<T> for MsgPack<T> {
+	impl<T> From<T> for MsgPack<T>
+	where
+		T: Serialize,
+	{
 		fn from(inner: T) -> Self {
 			Self(inner)
 		}
@@ -88,18 +87,20 @@ mod extract {
 		T: Serialize,
 	{
 		fn into_response(self) -> Response {
-			// Use a small initial capacity of 128 bytes like serde_json::to_vec
-			// https://docs.rs/serde_json/1.0.82/src/serde_json/ser.rs.html#2189
-			let mut buf = BytesMut::with_capacity(128).writer();
-			let mut ser = Serializer::new(&mut buf);
+			// // Use a small initial capacity of 128 bytes like serde_json::to_vec
+			// // https://docs.rs/serde_json/1.0.82/src/serde_json/ser.rs.html#2189
+			// let mut buf = BytesMut::with_capacity(128).writer();
+			// let mut ser = Serializer::new(&mut buf).with_struct_map();
 
-			match self.0.serialize(&mut ser) {
-				Ok(()) => (
+			// match self.0.serialize(&mut ser) {
+
+			match to_vec(&self.0) {
+				Ok(content) => (
 					[(
 						header::CONTENT_TYPE,
-						HeaderValue::from_static(mime::APPLICATION_JSON.as_ref()),
+						HeaderValue::from_static(mime::APPLICATION_MSGPACK.as_ref()),
 					)],
-					buf.into_inner().freeze(),
+					content,
 				)
 					.into_response(),
 				Err(err) => (
@@ -115,19 +116,19 @@ mod extract {
 		}
 	}
 
-	#[derive(Debug, thiserror::Error)]
-	#[non_exhaustive]
-	/// Rejection used for [`Json`](super::Json).
+	/// Rejection used for [`MsgPack`].
 	///
-	/// Contains one variant for each way the [`Json`](super::Json) extractor
+	/// Contains one variant for each way the [`MsgPack`] extractor
 	/// can fail.
+	#[non_exhaustive]
+	#[derive(Debug, thiserror::Error)]
 	pub enum MsgPackRejection {
 		#[error(transparent)]
 		Bytes(#[from] BytesRejection),
 		#[error(transparent)]
 		Decode(#[from] rmp_serde::decode::Error),
 		#[error("missing dlhn content type")]
-		MissingDlhnContentType,
+		MissingMsgPackContentType,
 	}
 
 	impl IntoResponse for MsgPackRejection {
@@ -135,7 +136,7 @@ mod extract {
 			match self {
 				Self::Bytes(err) => err.into_response(),
 				Self::Decode(err) => (StatusCode::BAD_REQUEST, format!("{}", err)).into_response(),
-				Self::MissingDlhnContentType => {
+				Self::MissingMsgPackContentType => {
 					(StatusCode::BAD_REQUEST, format!("{}", self)).into_response()
 				}
 			}
