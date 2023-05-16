@@ -15,8 +15,8 @@ CREATE TABLE pastes
 
     slug       varchar(255) NOT NULL UNIQUE,
     visibility visibility   NOT NULL,
-    content    bytea        NOT NULL
+    content    bytea        NOT NULL,
 
-    -- created_at    date         NOT NULL,
-    -- cleanup_after date         NOT NULL
+    created_at timestamp    NOT NULL,
+    burn_at    timestamp    NOT NULL
 );

@@ -1,19 +1,24 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{value_parser, Args, Parser, Subcommand};
+use clap_complete::Shell;
 use duration_human::DurationHuman;
 use pgpaste_api_types::Visibility;
 use std::{io::stdin, path::PathBuf, time::Duration};
 
 #[derive(Debug, Parser)]
-#[clap(author, version, about)]
+#[clap(name = "pgpaste", author, version, about)]
+#[clap(arg_required_else_help = true)]
 pub(crate) struct PGPasteArgs {
 	#[clap(subcommand)]
-	pub(crate) command: Commands,
+	pub(crate) command: Option<Commands>,
 
 	#[clap(long)]
 	pub(crate) server: Option<String>,
 
 	#[clap(long)]
 	pub(crate) config: Option<PathBuf>,
+
+	#[clap(long, value_parser = value_parser!(Shell))]
+	pub(crate) generate: Option<Shell>,
 }
 
 #[derive(Debug, Subcommand)]

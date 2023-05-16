@@ -23,7 +23,7 @@ pub(crate) async fn create_signed_paste(
 ) -> Result<impl IntoResponse, ServerError> {
 	let mut conn = state.database.get().await?;
 	let slug = content.slug.unwrap_or_else(|| petname::petname(4, "-"));
-	let _overwrite = method == Method::PUT;
+	let overwrite = method == Method::PUT;
 
 	if let Some(content_type) = headers.get(header::CONTENT_TYPE) {
 		if content_type != HeaderValue::from_static(mime::APPLICATION_MSGPACK.as_ref()) {
@@ -37,17 +37,21 @@ pub(crate) async fn create_signed_paste(
 
 	dbg!(cert.descendants().collect::<Vec<_>>());
 
-	let paste = NewPaste {
-		slug: &slug,
-		visibility: &content.visibility.into(),
-		content: &content.inner,
-	};
+	if overwrite {
+		todo!()
+	} else {
+		let paste = NewPaste {
+			slug: &slug,
+			visibility: &content.visibility.into(),
+			content: &content.inner,
+		};
 
-	paste
-		.insert()
-		.execute(&mut conn)
-		.await
-		.wrap_err("Could not insert paste")?;
+		paste
+			.insert()
+			.execute(&mut conn)
+			.await
+			.wrap_err("Could not insert paste")?;
+	}
 
 	tracing::debug!(slug = slug, "Created {:?} paste", content.visibility);
 

@@ -135,9 +135,9 @@ mod extract {
 		fn into_response(self) -> Response {
 			match self {
 				Self::Bytes(err) => err.into_response(),
-				Self::Decode(err) => (StatusCode::BAD_REQUEST, format!("{}", err)).into_response(),
+				Self::Decode(err) => (StatusCode::BAD_REQUEST, format!("{err}")).into_response(),
 				Self::MissingMsgPackContentType => {
-					(StatusCode::BAD_REQUEST, format!("{}", self)).into_response()
+					(StatusCode::BAD_REQUEST, format!("{self}")).into_response()
 				}
 			}
 		}

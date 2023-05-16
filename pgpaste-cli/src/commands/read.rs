@@ -1,6 +1,6 @@
 use crate::{args::ReadArgs, config::Config};
 use pgpaste_api_types::{api::ReadResponse, Visibility};
-use reqwest::{blocking::Client, StatusCode, Url};
+use reqwest::{blocking::Client, header::HeaderValue, StatusCode, Url};
 use sequoia_openpgp::{parse::Parse, Message};
 
 pub(crate) fn read(args: &ReadArgs, config: &Config) -> eyre::Result<()> {
@@ -51,15 +51,10 @@ fn get(mut server: Url, slug: &str, _args: &ReadArgs) -> eyre::Result<ReadRespon
 
 	let response = client.get(server).send()?;
 
-	// TODO
-	if response
-		.headers()
-		.get("content-type")
-		.ok_or(eyre::eyre!("No content type header"))?
-		.to_str()?
-		!= "application/msgpack"
-	{
-		eyre::bail!("Invalid content type");
+	if let Some(content_type) = response.headers().get("content-type") {
+		if HeaderValue::from_str("application/msgpack")? != content_type {
+			eyre::bail!("Invalid content type");
+		}
 	}
 
 	match response.status() {

@@ -20,7 +20,7 @@ pub(crate) async fn get_paste(
 ) -> Result<impl IntoResponse, ServerError> {
 	let mut conn = state.database.get().await?;
 
-	let paste = Paste::with_slug(&paste_slug)
+	let paste: Option<Paste> = Paste::with_slug(&paste_slug)
 		.select(Paste::as_select())
 		.first::<Paste>(&mut conn)
 		.await
@@ -28,9 +28,9 @@ pub(crate) async fn get_paste(
 		.wrap_err("Failed to load paste")?;
 
 	let paste = if let Some(paste) = paste {
-		// if paste.burn_at < SystemTime::now() {
-		// 	return Err(ServerError::UserFacing(UserFacingServerError::PasteBurned));
-		// }
+		if paste.burn_at < SystemTime::now() {
+			return Err(ServerError::UserFacing(UserFacingServerError::PasteBurned));
+		}
 
 		paste
 	} else {
@@ -47,6 +47,7 @@ pub(crate) async fn get_paste(
 	Ok((StatusCode::OK, MsgPack(res)))
 }
 
-pub(crate) async fn get_key_pastes() -> impl IntoResponse {
-	StatusCode::NOT_IMPLEMENTED
+#[allow(clippy::unused_async)]
+pub(crate) async fn get_key_pastes() -> Result<impl IntoResponse, ServerError> {
+	Ok(StatusCode::NOT_IMPLEMENTED)
 }

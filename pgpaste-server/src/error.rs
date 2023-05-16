@@ -22,10 +22,10 @@ impl IntoResponse for ServerError {
 		tracing::error!(error = ?self);
 
 		match self {
-			ServerError::Database(_) | ServerError::Eyre(_) | ServerError::Pool(_) => {
+			Self::Database(_) | Self::Eyre(_) | Self::Pool(_) => {
 				StatusCode::INTERNAL_SERVER_ERROR.into_response()
 			}
-			ServerError::UserFacing(error) => error.into_response(),
+			Self::UserFacing(error) => error.into_response(),
 		}
 	}
 }
@@ -48,19 +48,13 @@ impl IntoResponse for UserFacingServerError {
 		tracing::error!(error = ?self);
 
 		match self {
-			UserFacingServerError::InvalidContentType => {
+			Self::InvalidContentType => {
 				(StatusCode::BAD_REQUEST, "Invalid content type").into_response()
 			}
-			UserFacingServerError::InvalidCert => {
-				(StatusCode::BAD_REQUEST, "Invalid cert").into_response()
-			}
+			Self::InvalidCert => (StatusCode::BAD_REQUEST, "Invalid cert").into_response(),
 
-			UserFacingServerError::PasteBurned => {
-				(StatusCode::GONE, "Paste burned").into_response()
-			}
-			UserFacingServerError::PasteNotFound => {
-				(StatusCode::NOT_FOUND, "Paste not found").into_response()
-			}
+			Self::PasteBurned => (StatusCode::GONE, "Paste burned").into_response(),
+			Self::PasteNotFound => (StatusCode::NOT_FOUND, "Paste not found").into_response(),
 		}
 	}
 }

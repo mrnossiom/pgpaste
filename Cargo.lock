@@ -340,6 +340,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1594fe2312ec4abf402076e407628f5c313e54c32ade058521df4ee34ecac8a8"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1566,9 +1575,7 @@ dependencies = [
 name = "pgpaste-api-types"
 version = "0.0.0"
 dependencies = [
- "rmp-serde",
  "serde",
- "time",
 ]
 
 [[package]]
@@ -1577,6 +1584,7 @@ version = "0.0.0"
 dependencies = [
  "atty",
  "clap",
+ "clap_complete",
  "dirs",
  "duration-human",
  "eyre",
@@ -1585,7 +1593,6 @@ dependencies = [
  "rmp-serde",
  "sequoia-openpgp",
  "serde",
- "time",
  "toml 0.7.3",
 ]
 
@@ -1609,7 +1616,6 @@ dependencies = [
  "sequoia-openpgp",
  "serde",
  "thiserror",
- "time",
  "tokio",
  "tower-http",
  "tracing",
@@ -2412,7 +2418,6 @@ checksum = "8f3403384eaacbca9923fa06940178ac13e4edb725486d70e8e15881d0c836cc"
 dependencies = [
  "serde",
  "time-core",
- "time-macros",
 ]
 
 [[package]]
@@ -2420,15 +2425,6 @@ name = "time-core"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7300fbefb4dadc1af235a9cef3737cea692a9d97e1b9cbcd4ebdae6f8868e6fb"
-
-[[package]]
-name = "time-macros"
-version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "372950940a5f07bf38dbe211d7283c9e6d7327df53794992d293e534c733d09b"
-dependencies = [
- "time-core",
-]
 
 [[package]]
 name = "tiny-keccak"

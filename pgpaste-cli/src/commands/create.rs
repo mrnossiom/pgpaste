@@ -43,6 +43,7 @@ fn post(
 		slug: slug.clone(),
 		visibility: args.mode,
 		burn_in: args.burn_in()?,
+		burn_after_read: args.burn_after_read,
 		inner: content,
 	};
 

@@ -5,7 +5,7 @@ _default:
 
 # Run the server
 run-cli *ARGS:
-	cargo run -q --bin pgpaste-cli -- --config pgpaste-cli/config.toml {{ARGS}}
+	cargo run -q --bin pgpaste -- --config pgpaste-cli/config.toml {{ARGS}}
 
 # Run the server
 run-server:

@@ -10,7 +10,7 @@ use diesel::{
 	serialize::{self, IsNull, Output, ToSql},
 	AsChangeset, AsExpression, FromSqlRow, Identifiable, Insertable, Queryable, Selectable,
 };
-use std::io::Write;
+use std::{io::Write, time::SystemTime};
 
 #[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq)]
 #[diesel(sql_type = schema::sql_types::Visibility)]
@@ -23,9 +23,9 @@ pub enum Visibility {
 impl ToSql<schema::sql_types::Visibility, Pg> for Visibility {
 	fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
 		match *self {
-			Visibility::Public => out.write_all(b"public")?,
-			Visibility::Protected => out.write_all(b"protected")?,
-			Visibility::Private => out.write_all(b"private")?,
+			Self::Public => out.write_all(b"public")?,
+			Self::Protected => out.write_all(b"protected")?,
+			Self::Private => out.write_all(b"private")?,
 		}
 		Ok(IsNull::No)
 	}
@@ -34,9 +34,9 @@ impl ToSql<schema::sql_types::Visibility, Pg> for Visibility {
 impl FromSql<schema::sql_types::Visibility, Pg> for Visibility {
 	fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
 		match bytes.as_bytes() {
-			b"public" => Ok(Visibility::Public),
-			b"protected" => Ok(Visibility::Protected),
-			b"private" => Ok(Visibility::Private),
+			b"public" => Ok(Self::Public),
+			b"protected" => Ok(Self::Protected),
+			b"private" => Ok(Self::Private),
 			_ => Err("Unrecognized enum variant".into()),
 		}
 	}
@@ -45,9 +45,9 @@ impl FromSql<schema::sql_types::Visibility, Pg> for Visibility {
 impl From<pgpaste_api_types::Visibility> for Visibility {
 	fn from(visibility: pgpaste_api_types::Visibility) -> Self {
 		match visibility {
-			pgpaste_api_types::Visibility::Public => Visibility::Public,
-			pgpaste_api_types::Visibility::Protected => Visibility::Protected,
-			pgpaste_api_types::Visibility::Private => Visibility::Private,
+			pgpaste_api_types::Visibility::Public => Self::Public,
+			pgpaste_api_types::Visibility::Protected => Self::Protected,
+			pgpaste_api_types::Visibility::Private => Self::Private,
 		}
 	}
 }
@@ -55,9 +55,9 @@ impl From<pgpaste_api_types::Visibility> for Visibility {
 impl From<Visibility> for pgpaste_api_types::Visibility {
 	fn from(visibility: Visibility) -> Self {
 		match visibility {
-			Visibility::Public => pgpaste_api_types::Visibility::Public,
-			Visibility::Protected => pgpaste_api_types::Visibility::Protected,
-			Visibility::Private => pgpaste_api_types::Visibility::Private,
+			Visibility::Public => Self::Public,
+			Visibility::Protected => Self::Protected,
+			Visibility::Private => Self::Private,
 		}
 	}
 }
@@ -89,6 +89,9 @@ pub(crate) struct Paste {
 	pub(crate) slug: String,
 	pub(crate) visibility: Visibility,
 	pub(crate) content: Vec<u8>,
+
+	pub(crate) burn_at: SystemTime,
+	pub(crate) created_at: SystemTime,
 }
 
 /// Use to create a new [`Paste`]
