@@ -2,6 +2,7 @@ use clap::{value_parser, Args, Parser, Subcommand};
 use clap_complete::Shell;
 use duration_human::DurationHuman;
 use pgpaste_api_types::Visibility;
+use sequoia_openpgp::KeyHandle;
 use std::{io::stdin, path::PathBuf, time::Duration};
 
 #[derive(Debug, Parser)]
@@ -50,6 +51,9 @@ pub(crate) struct CreateArgs {
 	#[clap(long)]
 	pub(crate) burn_after_read: bool,
 
+	#[clap(long, value_parser = parsers::to_key_handle)]
+	pub(crate) recipient: Option<KeyHandle>,
+
 	#[clap(long)]
 	pub(crate) overwrite: bool,
 }
@@ -88,6 +92,7 @@ pub(crate) struct ReadArgs {
 mod parsers {
 	use duration_human::DurationHuman;
 	use pgpaste_api_types::Visibility;
+	use sequoia_openpgp::KeyHandle;
 
 	pub(crate) fn to_api_visibility(visibility: &str) -> Result<Visibility, String> {
 		match visibility {
@@ -100,6 +105,10 @@ mod parsers {
 
 	pub(crate) fn to_duration_human(duration: &str) -> Result<DurationHuman, String> {
 		DurationHuman::try_from(duration).map_err(|err| err.to_string())
+	}
+
+	pub(crate) fn to_key_handle(handle: &str) -> Result<KeyHandle, String> {
+		handle.parse::<KeyHandle>().map_err(|err| err.to_string())
 	}
 
 	pub(crate) fn to_do<T>(_duration: &str) -> Result<T, String> {

@@ -68,16 +68,18 @@ impl From<Visibility> for pgpaste_api_types::Visibility {
 pub(crate) struct PublicKey {
 	pub(crate) id: i32,
 
+	pub(crate) cert: Vec<u8>,
 	pub(crate) fingerprint: Vec<u8>,
-	pub(crate) key: Vec<u8>,
+
+	pub(crate) is_premium: bool,
 }
 
 /// Use to create a new [`PublicKey`]
 #[derive(Debug, Insertable, AsChangeset)]
 #[diesel(table_name = public_keys)]
 pub(crate) struct NewPublicKey<'a> {
+	pub(crate) cert: &'a [u8],
 	pub(crate) fingerprint: &'a [u8],
-	pub(crate) key: &'a [u8],
 }
 
 /// Represent a single signed or encrypted paste
@@ -101,4 +103,8 @@ pub(crate) struct NewPaste<'a> {
 	pub(crate) slug: &'a str,
 	pub(crate) visibility: &'a Visibility,
 	pub(crate) content: &'a [u8],
+
+	pub(crate) created_at: &'a SystemTime,
+	pub(crate) burn_at: &'a SystemTime,
+	pub(crate) burn_after_read: bool,
 }

@@ -1,3 +1,4 @@
+use super::extract::MsgPack;
 use crate::{
 	database::{models::Paste, prelude::*},
 	error::{ServerError, UserFacingServerError},
@@ -12,28 +13,20 @@ use eyre::Context;
 use pgpaste_api_types::api::ReadResponse;
 use std::time::SystemTime;
 
-use super::extract::MsgPack;
-
+#[tracing::instrument(skip(state))]
 pub(crate) async fn get_paste(
 	State(state): State<AppState>,
 	Path(paste_slug): Path<String>,
 ) -> Result<impl IntoResponse, ServerError> {
 	let mut conn = state.database.get().await?;
 
-	let paste: Option<Paste> = Paste::with_slug(&paste_slug)
+	let Some(paste) = Paste::with_slug(&paste_slug)
 		.select(Paste::as_select())
 		.first::<Paste>(&mut conn)
 		.await
 		.optional()
-		.wrap_err("Failed to load paste")?;
-
-	let paste = if let Some(paste) = paste {
-		if paste.burn_at < SystemTime::now() {
-			return Err(ServerError::UserFacing(UserFacingServerError::PasteBurned));
-		}
-
-		paste
-	} else {
+		.wrap_err("Failed to load paste")? else
+	{
 		return Err(UserFacingServerError::PasteNotFound.into());
 	};
 
@@ -48,6 +41,7 @@ pub(crate) async fn get_paste(
 }
 
 #[allow(clippy::unused_async)]
+#[tracing::instrument]
 pub(crate) async fn get_key_pastes() -> Result<impl IntoResponse, ServerError> {
 	Ok(StatusCode::NOT_IMPLEMENTED)
 }

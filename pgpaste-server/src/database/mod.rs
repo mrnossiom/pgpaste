@@ -16,11 +16,12 @@ pub(crate) mod query;
 #[rustfmt::skip]
 pub(crate) mod schema;
 
-
+#[allow(dead_code)]
 /// The type alias for a Postgres connection pool
-pub(crate) type _DatabasePool = Pool<AsyncPgConnection>;
+pub(crate) type DatabasePool = Pool<AsyncPgConnection>;
+#[allow(dead_code)]
 /// The type alias for a Postgres connection handle
-pub(crate) type _DatabasePooledConnection = Object<AsyncPgConnection>;
+pub(crate) type DatabasePooledConnection = Object<AsyncPgConnection>;
 
 /// The migrations to apply to the database
 pub(crate) const MIGRATIONS: EmbeddedMigrations = embed_migrations!();

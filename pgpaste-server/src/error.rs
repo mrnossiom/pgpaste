@@ -36,25 +36,26 @@ pub(crate) enum UserFacingServerError {
 	InvalidContentType,
 	#[error("Invalid cert")]
 	InvalidCert,
+	#[error("Invalid message structure")]
+	InvalidMessageStructure,
 
-	#[error("Paste burned")]
-	PasteBurned,
 	#[error("Paste not found")]
 	PasteNotFound,
+	#[error("Burn date is too far in the future")]
+	InvalidBurnIn,
 }
 
 impl IntoResponse for UserFacingServerError {
 	fn into_response(self) -> Response {
-		tracing::error!(error = ?self);
+		let code = match self {
+			Self::InvalidCert
+			| Self::InvalidContentType
+			| Self::InvalidMessageStructure
+			| Self::InvalidBurnIn => StatusCode::BAD_REQUEST,
 
-		match self {
-			Self::InvalidContentType => {
-				(StatusCode::BAD_REQUEST, "Invalid content type").into_response()
-			}
-			Self::InvalidCert => (StatusCode::BAD_REQUEST, "Invalid cert").into_response(),
+			Self::PasteNotFound => StatusCode::NOT_FOUND,
+		};
 
-			Self::PasteBurned => (StatusCode::GONE, "Paste burned").into_response(),
-			Self::PasteNotFound => (StatusCode::NOT_FOUND, "Paste not found").into_response(),
-		}
+		(code, format!("{self}")).into_response()
 	}
 }

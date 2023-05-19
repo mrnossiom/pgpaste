@@ -1,4 +1,4 @@
-use crate::args::PGPasteArgs;
+use crate::{args::PGPasteArgs, ToEyreError};
 use dirs::config_local_dir;
 use reqwest::Url;
 use sequoia_openpgp::{parse::Parse, Cert};
@@ -58,7 +58,7 @@ impl Config {
 
 		let keys = config
 			.keys
-			.map(|path| Cert::from_file(path).map_err(|err| eyre::eyre!(Box::new(err))))
+			.map(|path| Cert::from_file(path).to_eyre())
 			.map_or(Ok(None), |v| v.map(Some))?;
 
 		let server = Url::parse(&args.server.clone().unwrap_or(config.server))?;

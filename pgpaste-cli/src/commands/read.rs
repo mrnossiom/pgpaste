@@ -1,14 +1,17 @@
-use crate::{args::ReadArgs, config::Config};
+use crate::{args::ReadArgs, config::Config, ToEyreError};
 use pgpaste_api_types::{api::ReadResponse, Visibility};
 use reqwest::{blocking::Client, header::HeaderValue, StatusCode, Url};
 use sequoia_openpgp::{parse::Parse, Message};
 
-pub(crate) fn read(args: &ReadArgs, config: &Config) -> eyre::Result<()> {
-	// TODO
-	let _key = config.keys.clone().ok_or(eyre::eyre!(""))?;
+#[allow(clippy::needless_pass_by_value)]
+pub(crate) fn read(args: ReadArgs, config: &Config) -> eyre::Result<()> {
+	let key = config
+		.keys
+		.clone()
+		.ok_or(eyre::eyre!("no signing cert found"))?;
 
-	let paste = get(config.server.clone(), &args.slug, args)?;
-	let cert = Message::from_bytes(&paste.inner).map_err(|err| eyre::eyre!(Box::new(err)))?;
+	let paste = get(config.server.clone(), &args.slug, &args)?;
+	let cert = Message::from_bytes(&paste.inner).to_eyre()?;
 
 	let content = match paste.visibility {
 		Visibility::Public => {
@@ -51,14 +54,16 @@ fn get(mut server: Url, slug: &str, _args: &ReadArgs) -> eyre::Result<ReadRespon
 
 	let response = client.get(server).send()?;
 
-	if let Some(content_type) = response.headers().get("content-type") {
-		if HeaderValue::from_str("application/msgpack")? != content_type {
-			eyre::bail!("Invalid content type");
-		}
-	}
-
 	match response.status() {
-		StatusCode::OK => Ok(rmp_serde::from_slice(&response.bytes()?)?),
+		StatusCode::OK => {
+			if let Some(content_type) = response.headers().get("content-type") {
+				if HeaderValue::from_str("application/msgpack")? != content_type {
+					eyre::bail!("Invalid content type");
+				}
+			};
+
+			Ok(rmp_serde::from_slice(&response.bytes()?)?)
+		}
 		StatusCode::NOT_FOUND => eyre::bail!("Paste not found"),
 		code => eyre::bail!("Unknown error: {}, {}", code, response.text()?),
 	}

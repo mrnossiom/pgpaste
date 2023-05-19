@@ -11,6 +11,7 @@
 use crate::{
 	api::api_router,
 	config::{AppState, Config},
+	routines::setup_routines,
 };
 use axum::{Router, Server};
 use tower_http::trace::TraceLayer;
@@ -20,6 +21,7 @@ mod api;
 mod config;
 mod database;
 mod error;
+mod routines;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -39,7 +41,9 @@ async fn main() -> eyre::Result<()> {
 	let app = Router::new()
 		.nest("/api", api_router())
 		.layer(TraceLayer::new_for_http())
-		.with_state(state);
+		.with_state(state.clone());
+
+	setup_routines(state).await?;
 
 	tracing::debug!("Starting server");
 	Server::bind(&"0.0.0.0:3000".parse()?)
@@ -47,4 +51,14 @@ async fn main() -> eyre::Result<()> {
 		.await?;
 
 	Ok(())
+}
+
+pub(crate) trait ToEyreError<T> {
+	fn to_eyre(self) -> eyre::Result<T>;
+}
+
+impl<T> ToEyreError<T> for sequoia_openpgp::Result<T> {
+	fn to_eyre(self) -> eyre::Result<T> {
+		self.map_err(|err| eyre::eyre!(Box::new(err)))
+	}
 }

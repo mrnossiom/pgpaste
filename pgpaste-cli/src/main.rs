@@ -16,6 +16,7 @@ use std::io;
 mod args;
 mod commands;
 mod config;
+mod crypto;
 
 use crate::args::{Commands, PGPasteArgs};
 
@@ -36,10 +37,20 @@ fn main() -> eyre::Result<()> {
 
 	if let Some(command) = args.command {
 		match command {
-			Commands::Create(create_args) => commands::create(&create_args, &config)?,
-			Commands::Read(read_args) => commands::read(&read_args, &config)?,
+			Commands::Create(create_args) => commands::create(create_args, &config)?,
+			Commands::Read(read_args) => commands::read(read_args, &config)?,
 		}
 	};
 
 	Ok(())
+}
+
+pub(crate) trait ToEyreError<T> {
+	fn to_eyre(self) -> eyre::Result<T>;
+}
+
+impl<T> ToEyreError<T> for sequoia_openpgp::Result<T> {
+	fn to_eyre(self) -> eyre::Result<T> {
+		self.map_err(|err| eyre::eyre!(Box::new(err)))
+	}
 }
