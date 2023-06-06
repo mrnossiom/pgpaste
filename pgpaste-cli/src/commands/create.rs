@@ -27,7 +27,6 @@ pub(crate) fn create(args: CreateArgs, config: &Config) -> eyre::Result<()> {
 		Visibility::Public => sign(&content, &key)?,
 		Visibility::Private => {
 			// TODO: get recipient key by handle using local keyring
-
 			let recipient_key = match &args.recipient {
 				Some(handle) => {
 					let mut key_server =

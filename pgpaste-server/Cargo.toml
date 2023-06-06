@@ -13,11 +13,12 @@ publish = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.6.17"
+anyhow = "1.0.71"
+axum = "0.6.18"
 bytes = "1.4.0"
-diesel = { version = "2.0.4", features = ["postgres"] }
-diesel-async = { version = "0.2.2", features = ["postgres", "deadpool"] }
-diesel_migrations = { version = "2.0.0", features = ["postgres"] }
+diesel = { version = "2.1.0", features = ["postgres"] }
+diesel-async = { version = "0.3.0", features = ["postgres", "deadpool"] }
+diesel_migrations = { version = "2.1.0", features = ["postgres"] }
 dotenvy = "0.15.7"
 eyre = "0.6.8"
 mime = "0.3.17"
@@ -29,10 +30,10 @@ pgpaste-api-types = { workspace = true }
 rmp-serde = "1.1.1"
 secrecy = "0.8.0"
 sequoia-net = "0.27.0"
-sequoia-openpgp = "1.14.0"
+sequoia-openpgp = "1.16.0"
 serde = "1.0.163"
 thiserror = "1.0.40"
-tokio = { version = "1.28.0", features = ["full"] }
+tokio = { version = "1.28.1", features = ["full"] }
 tower-http = { version = "0.4.0", features = ["tracing", "trace"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }

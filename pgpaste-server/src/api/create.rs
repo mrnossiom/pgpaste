@@ -1,5 +1,6 @@
 use crate::{
 	api::extract::MsgPack,
+	crypto::verify,
 	database::{
 		models::{NewPaste, NewPublicKey, PublicKey},
 		prelude::*,
@@ -46,14 +47,13 @@ pub(crate) async fn create_signed_paste(
 		return Err(UserFacingServerError::InvalidBurnIn.into());
 	}
 
-	let cert = Message::from_bytes(&content.inner)
-		.map_err(|e| tracing::error!(error = ?e))
-		.map_err(|_| ServerError::UserFacing(UserFacingServerError::InvalidCert))?;
+	let message =
+		Message::from_bytes(&content.inner).map_err(UserFacingServerError::InvalidCert)?;
 
 	// TODO: remove
-	tracing::debug!(parsed = ?cert.descendants().collect::<Vec<_>>());
+	tracing::debug!(parsed = ?message.descendants().collect::<Vec<_>>());
 
-	let Some(fingerprint) = cert.descendants().find_map(|p| {
+	let Some(fingerprint) = message.descendants().find_map(|p| {
 		if let Packet::Signature(Signature::V4(sig)) = p {
 			sig.issuer_fingerprints().next()
 		} else {
@@ -86,7 +86,9 @@ pub(crate) async fn create_signed_paste(
 		cert
 	};
 
-	// TODO: verify signature with `cert`
+	if let Err(e) = verify(&content.inner, cert) {
+		return Err(UserFacingServerError::InvalidSignature(e).into());
+	};
 
 	let now = SystemTime::now();
 	let paste = NewPaste {

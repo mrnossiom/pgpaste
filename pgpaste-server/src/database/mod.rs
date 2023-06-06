@@ -13,6 +13,7 @@ use secrecy::ExposeSecret;
 pub(crate) mod models;
 pub(crate) mod query;
 /// The automatically generated schema by `Diesel`
+#[allow(clippy::wildcard_imports)]
 #[rustfmt::skip]
 pub(crate) mod schema;
 

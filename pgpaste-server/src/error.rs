@@ -30,14 +30,17 @@ impl IntoResponse for ServerError {
 	}
 }
 
+// TODO: change `anyhow::Error` to `sequoia_openpgp::Error` when 2.0 is released
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum UserFacingServerError {
 	#[error("Invalid content type")]
 	InvalidContentType,
 	#[error("Invalid cert")]
-	InvalidCert,
+	InvalidCert(anyhow::Error),
 	#[error("Invalid message structure")]
 	InvalidMessageStructure,
+	#[error("Invalid signature")]
+	InvalidSignature(eyre::Error),
 
 	#[error("Paste not found")]
 	PasteNotFound,
@@ -48,10 +51,11 @@ pub(crate) enum UserFacingServerError {
 impl IntoResponse for UserFacingServerError {
 	fn into_response(self) -> Response {
 		let code = match self {
-			Self::InvalidCert
+			Self::InvalidCert(_)
 			| Self::InvalidContentType
 			| Self::InvalidMessageStructure
-			| Self::InvalidBurnIn => StatusCode::BAD_REQUEST,
+			| Self::InvalidBurnIn
+			| Self::InvalidSignature(_) => StatusCode::BAD_REQUEST,
 
 			Self::PasteNotFound => StatusCode::NOT_FOUND,
 		};

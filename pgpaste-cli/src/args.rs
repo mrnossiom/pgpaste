@@ -2,8 +2,12 @@ use clap::{value_parser, Args, Parser, Subcommand};
 use clap_complete::Shell;
 use duration_human::DurationHuman;
 use pgpaste_api_types::Visibility;
-use sequoia_openpgp::KeyHandle;
-use std::{io::stdin, path::PathBuf, time::Duration};
+use sequoia_openpgp::{crypto::Password, KeyHandle};
+use std::{
+	io::{stdin, stdout, IsTerminal},
+	path::PathBuf,
+	time::Duration,
+};
 
 #[derive(Debug, Parser)]
 #[clap(name = "pgpaste", author, version, about)]
@@ -17,6 +21,9 @@ pub(crate) struct PGPasteArgs {
 
 	#[clap(long)]
 	pub(crate) config: Option<PathBuf>,
+
+	#[clap(long)]
+	quiet: bool,
 
 	#[clap(long, value_parser = value_parser!(Shell))]
 	pub(crate) generate: Option<Shell>,
@@ -64,7 +71,7 @@ impl CreateArgs {
 			content.clone()
 		} else if let Some(file) = &self.file {
 			std::fs::read_to_string(file)?
-		} else if atty::isnt(atty::Stream::Stdin) {
+		} else if stdout().is_terminal() {
 			std::io::read_to_string(stdin())?
 		} else {
 			eyre::bail!("I could not get paste content by a `--file`, a `--content` or stdin.")
@@ -86,7 +93,11 @@ impl CreateArgs {
 
 #[derive(Debug, Args)]
 pub(crate) struct ReadArgs {
+	#[clap(long, short)]
 	pub(crate) slug: String,
+
+	#[clap(long, short)]
+	pub(crate) password: Option<Password>,
 }
 
 mod parsers {

@@ -19,6 +19,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 
 mod api;
 mod config;
+mod crypto;
 mod database;
 mod error;
 mod routines;
