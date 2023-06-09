@@ -2,9 +2,9 @@ use crate::{
 	api::extract::MsgPack,
 	crypto::{verify, Helper},
 	database::{
-		models::{NewPaste, NewPublicKey, PublicKey},
+		models::{NewPaste, NewPublicKey, Paste, PublicKey},
 		prelude::*,
-		schema::pastes,
+		schema::{pastes, public_keys},
 	},
 	error::{ServerError, UserFacingServerError},
 	AppState, ToEyreError,
@@ -50,9 +50,6 @@ pub(crate) async fn create_signed_paste(
 	let message =
 		Message::from_bytes(&content.inner).map_err(UserFacingServerError::InvalidCert)?;
 
-	// TODO: remove
-	tracing::trace!(parsed = ?message.descendants().collect::<Vec<_>>());
-
 	let Some(fingerprint) = message.descendants().find_map(|p| {
 		if let Packet::Signature(Signature::V4(sig)) = p {
 			sig.issuer_fingerprints().next()
@@ -67,12 +64,13 @@ pub(crate) async fn create_signed_paste(
 		.first::<PublicKey>(&mut conn)
 		.await
 		.optional()
-		.wrap_err("Could not get public key")?;
+		.wrap_err("could not get public key profile")?;
 
-	// TODO: handle errors
-	let cert = if let Some(key) = pub_key {
+	let (cert, id) = if let Some(key) = pub_key {
 		// TODO: check rates and premium
-		Cert::from_bytes(&key.cert).to_eyre()?
+		let cert = Cert::from_bytes(&key.cert).to_eyre()?;
+
+		(cert, key.id)
 	} else {
 		let mut key_server = KeyServer::keys_openpgp_org(Policy::Encrypted).to_eyre()?;
 		let cert = key_server
@@ -85,9 +83,14 @@ pub(crate) async fn create_signed_paste(
 			fingerprint: fingerprint.as_bytes(),
 			cert: &cert.export_to_vec().to_eyre()?,
 		};
-		new_pub_key.insert().execute(&mut conn).await?;
 
-		cert
+		let id = new_pub_key
+			.insert()
+			.returning(public_keys::id)
+			.get_result(&mut conn)
+			.await?;
+
+		(cert, id)
 	};
 
 	let cert_vec = vec![cert];
@@ -98,7 +101,9 @@ pub(crate) async fn create_signed_paste(
 
 	let now = SystemTime::now();
 	let paste = NewPaste {
+		public_key_id: id,
 		slug: &slug,
+		mime: content.mime.clone().into(),
 		visibility: &content.visibility.into(),
 		content: &content.inner,
 		burn_at: &(now + content.burn_in.unwrap_or(WEEK)),

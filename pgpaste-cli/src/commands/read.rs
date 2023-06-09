@@ -12,7 +12,6 @@ pub(crate) fn read(args: ReadArgs, config: &Config) -> eyre::Result<()> {
 	let helper = ReceiveHelper::new(&config.private_keys, &config.public_keys)?;
 
 	let content = match paste.visibility {
-		// TODO not the right cert
 		Visibility::Public => verify(&paste.inner, helper)?,
 		Visibility::Protected | Visibility::Private => decrypt(&paste.inner, helper)?,
 	};

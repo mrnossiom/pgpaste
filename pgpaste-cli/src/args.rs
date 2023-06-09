@@ -1,6 +1,7 @@
 use clap::{value_parser, Args, Parser, Subcommand};
 use clap_complete::Shell;
 use duration_human::DurationHuman;
+use mime::Mime;
 use pgpaste_api_types::Visibility;
 use sequoia_openpgp::{crypto::Password, KeyHandle};
 use std::{
@@ -43,6 +44,10 @@ pub(crate) struct CreateArgs {
 	#[clap(long, short, group = "message_content")]
 	content: Option<String>,
 
+	// TODO: guess mime type
+	#[clap(long, value_parser = parsers::to_mime)]
+	pub(crate) mime: Option<Mime>,
+
 	#[clap(long, group = "message_content")]
 	file: Option<PathBuf>,
 
@@ -51,7 +56,6 @@ pub(crate) struct CreateArgs {
 
 	#[clap(long, group = "time", value_parser = parsers::to_duration_human)]
 	lifetime: Option<DurationHuman>,
-	// TODO
 	#[clap(long, group = "time", value_parser = parsers::to_do::<Option<String>>)]
 	burn_date: Option<String>,
 
@@ -84,12 +88,12 @@ impl CreateArgs {
 		Ok(content)
 	}
 
-	// TODO: see if SystemTime is the right type
 	#[allow(clippy::unnecessary_wraps)]
 	pub(crate) fn burn_in(&self) -> eyre::Result<Option<Duration>> {
 		let dur: Option<Duration> = self.lifetime.as_ref().map(Into::into);
 
 		// TODO: implement and handle `burn_date`
+		// see if SystemTime is the right type
 
 		Ok(dur)
 	}
@@ -106,6 +110,7 @@ pub(crate) struct ReadArgs {
 
 mod parsers {
 	use duration_human::DurationHuman;
+	use mime::Mime;
 	use pgpaste_api_types::Visibility;
 	use sequoia_openpgp::KeyHandle;
 
@@ -124,6 +129,10 @@ mod parsers {
 
 	pub(crate) fn to_key_handle(handle: &str) -> Result<KeyHandle, String> {
 		handle.parse::<KeyHandle>().map_err(|err| err.to_string())
+	}
+
+	pub(crate) fn to_mime(mime_type: &str) -> Result<Mime, String> {
+		mime_type.parse::<Mime>().map_err(|err| err.to_string())
 	}
 
 	pub(crate) fn to_do<T>(_duration: &str) -> Result<T, String> {

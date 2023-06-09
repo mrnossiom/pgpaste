@@ -41,14 +41,6 @@ impl<'a> NewPublicKey<'a> {
 impl Paste {
 	/// Select a paste from his `slug`
 	#[inline]
-	pub(crate) fn with_slug(
-		slug: &str,
-	) -> Filter<Filter<pastes::table, Gt<pastes::burn_at, now>>, Eq<pastes::slug, &str>> {
-		Self::all_valid().filter(pastes::slug.eq(slug))
-	}
-
-	/// Select a paste from his `slug`
-	#[inline]
 	pub(crate) fn all_valid() -> Filter<pastes::table, Gt<pastes::burn_at, now>> {
 		pastes::table.filter(pastes::burn_at.gt(now))
 	}
@@ -57,6 +49,22 @@ impl Paste {
 	#[inline]
 	pub(crate) fn all_burnt() -> Filter<pastes::table, LtEq<pastes::burn_at, now>> {
 		pastes::table.filter(pastes::burn_at.le(now))
+	}
+
+	/// Select a paste from his `slug`
+	#[inline]
+	pub(crate) fn with_slug(
+		slug: &str,
+	) -> Filter<Filter<pastes::table, Gt<pastes::burn_at, now>>, Eq<pastes::slug, &str>> {
+		Self::all_valid().filter(pastes::slug.eq(slug))
+	}
+
+	/// Return the number of pastes associated with this public key
+	#[inline]
+	pub(crate) fn all_of_public_key(
+		public_key_id: i32,
+	) -> Filter<Filter<pastes::table, Gt<pastes::burn_at, now>>, Eq<pastes::public_key_id, i32>> {
+		Self::all_valid().filter(pastes::public_key_id.eq(public_key_id))
 	}
 }
 

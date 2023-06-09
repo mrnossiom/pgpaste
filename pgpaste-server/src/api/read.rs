@@ -32,6 +32,7 @@ pub(crate) async fn get_paste(
 
 	let res = ReadResponse {
 		slug: paste.slug,
+		mime: paste.mime.into(),
 		visibility: paste.visibility.into(),
 		inner: paste.content,
 		burn_at: SystemTime::now(),

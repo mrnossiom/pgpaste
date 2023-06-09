@@ -167,7 +167,6 @@ impl<'a> SendHelper<'a> {
 		Ok(key.into_keypair().expect("key was decrypted"))
 	}
 
-	// TODO: get recipient key by handle using local keyring
 	fn get_cert(&self, recipient: KeyHandle) -> eyre::Result<Cow<'a, Cert>> {
 		let cached_cert = self
 			.public_certs

@@ -1,27 +1,28 @@
-CREATE TYPE visibility AS ENUM ('public', 'protected', 'private');
+create type visibility as enum ('public', 'protected', 'private');
 
-CREATE TABLE public_keys
+create table public_keys
 (
-    id          serial PRIMARY KEY,
+    id          serial primary key,
 
-    cert        bytea              NOT NULL,
-    fingerprint bytea              NOT NULL UNIQUE,
+    cert        bytea              not null,
+    fingerprint bytea              not null unique,
 
-    is_premium  bool DEFAULT FALSE NOT NULL
+    is_premium  bool default false not null
 );
 
-CREATE TABLE pastes
+create table pastes
 (
-    id              serial PRIMARY KEY,
-    /*public_key_id int          NOT NULL
-        REFERENCES public_keys (id) ON DELETE RESTRICT,*/
+    id              serial primary key,
+    public_key_id   int          not null
+        references public_keys (id) on delete restrict,
 
-    slug            varchar(255) NOT NULL UNIQUE,
-    visibility      visibility   NOT NULL,
-    content         bytea        NOT NULL,
+    slug            varchar(255) not null unique,
+    mime            text         not null,
+    visibility      visibility   not null,
+    content         bytea        not null,
 
-    created_at      timestamp    NOT NULL,
-    burn_at         timestamp    NOT NULL,
-    -- Set the burn_at to NOW() when read
-    burn_after_read boolean      NOT NULL
+    created_at      timestamp    not null,
+    burn_at         timestamp    not null,
+    -- Set the burn_at to now() when read
+    burn_after_read boolean      not null
 );

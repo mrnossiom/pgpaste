@@ -1,4 +1,5 @@
 use crate::{Paste, SystemTime, Visibility};
+use mime::Mime;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -6,6 +7,8 @@ use std::time::Duration;
 #[serde(deny_unknown_fields)]
 pub struct CreateBody {
 	pub slug: Option<String>,
+	#[serde(with = "crate::mime_proxy")]
+	pub mime: Mime,
 	pub visibility: Visibility,
 	pub burn_in: Option<Duration>,
 	pub burn_after_read: bool,

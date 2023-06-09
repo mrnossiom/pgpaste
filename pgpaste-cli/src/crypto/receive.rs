@@ -20,7 +20,6 @@ use sequoia_openpgp::{
 };
 use std::{collections::HashMap, io};
 
-// TODO: use the message date for the policy
 const POLICY: &StandardPolicy = &StandardPolicy::new();
 
 pub(crate) fn verify(message: &[u8], helper: ReceiveHelper) -> eyre::Result<Vec<u8>> {
@@ -47,7 +46,6 @@ pub(crate) fn decrypt(ciphertext: &[u8], helper: ReceiveHelper) -> eyre::Result<
 	Ok(out)
 }
 
-// TODO: implement local keyring
 /// This helper provides secrets for the decryption, fetches public
 /// keys for the signature verification and implements the
 /// verification policy.
@@ -168,8 +166,6 @@ impl<'a> DecryptionHelper for ReceiveHelper<'a> {
 	where
 		D: FnMut(SymmetricAlgorithm, &SessionKey) -> bool,
 	{
-		// TODO: custom sessions keys
-
 		// First, we try those keys that we can use without prompting
 		// for a password.
 		for pkesk in pkesks {

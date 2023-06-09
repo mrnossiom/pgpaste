@@ -6,8 +6,6 @@ use sequoia_openpgp::{parse::Parse, Cert, KeyHandle};
 use serde::{Deserialize, Serialize};
 use std::{fs::read_to_string, path::PathBuf};
 
-// TODO: read from a certificate store
-
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigScheme {
 	#[serde(default = "default_server")]
@@ -55,7 +53,6 @@ pub(crate) struct Config {
 	pub(crate) server: Url,
 
 	pub(crate) default_key: Option<KeyHandle>,
-	// TODO: allow to only read public pastes without having to setup certificates
 	pub(crate) private_keys: Vec<Cert>,
 	pub(crate) public_keys: Vec<Cert>,
 }

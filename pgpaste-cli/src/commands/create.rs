@@ -57,6 +57,7 @@ fn post(
 
 	let query = CreateBody {
 		slug: slug.clone(),
+		mime: args.mime.clone().unwrap_or(mime::TEXT_PLAIN),
 		visibility: args.mode,
 		burn_in: args.burn_in()?,
 		burn_after_read: args.burn_after_read,

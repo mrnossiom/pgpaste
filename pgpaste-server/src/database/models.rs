@@ -62,6 +62,36 @@ impl From<Visibility> for pgpaste_api_types::Visibility {
 	}
 }
 
+#[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq)]
+#[diesel(sql_type = diesel::sql_types::Text)]
+pub struct Mime(pub mime::Mime);
+
+impl ToSql<diesel::sql_types::Text, Pg> for Mime {
+	fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+		out.write_all(self.0.to_string().as_bytes())?;
+		Ok(IsNull::No)
+	}
+}
+
+impl FromSql<diesel::sql_types::Text, Pg> for Mime {
+	fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+		let mime = String::from_sql(bytes)?;
+		Ok(Self(mime.parse().map_err(|_| "Invalid mime type")?))
+	}
+}
+
+impl From<mime::Mime> for Mime {
+	fn from(mime: mime::Mime) -> Self {
+		Self(mime)
+	}
+}
+
+impl From<Mime> for mime::Mime {
+	fn from(mime: Mime) -> Self {
+		mime.0
+	}
+}
+
 /// Represent a single public key
 #[derive(Debug, PartialEq, Eq, Queryable, Identifiable, Selectable)]
 #[diesel(table_name = public_keys)]
@@ -87,8 +117,10 @@ pub(crate) struct NewPublicKey<'a> {
 #[diesel(table_name = pastes)]
 pub(crate) struct Paste {
 	pub(crate) id: i32,
+	pub(crate) public_key_id: i32,
 
 	pub(crate) slug: String,
+	pub(crate) mime: Mime,
 	pub(crate) visibility: Visibility,
 	pub(crate) content: Vec<u8>,
 
@@ -100,7 +132,10 @@ pub(crate) struct Paste {
 #[derive(Debug, Insertable, AsChangeset)]
 #[diesel(table_name = pastes)]
 pub(crate) struct NewPaste<'a> {
+	pub(crate) public_key_id: i32,
+
 	pub(crate) slug: &'a str,
+	pub(crate) mime: Mime,
 	pub(crate) visibility: &'a Visibility,
 	pub(crate) content: &'a [u8],
 

@@ -12,8 +12,10 @@ diesel::table! {
 
     pastes (id) {
         id -> Int4,
+        public_key_id -> Int4,
         #[max_length = 255]
         slug -> Varchar,
+        mime -> Text,
         visibility -> Visibility,
         content -> Bytea,
         created_at -> Timestamp,
@@ -30,6 +32,8 @@ diesel::table! {
         is_premium -> Bool,
     }
 }
+
+diesel::joinable!(pastes -> public_keys (public_key_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     pastes,
