@@ -23,8 +23,7 @@ use std::{collections::HashMap, io};
 // TODO: use the message date for the policy
 const POLICY: &StandardPolicy = &StandardPolicy::new();
 
-pub(crate) fn verify(message: &[u8], sender: Cert) -> eyre::Result<Vec<u8>> {
-	let helper = Helper::new(&[sender], &[])?;
+pub(crate) fn verify(message: &[u8], helper: ReceiveHelper) -> eyre::Result<Vec<u8>> {
 	let mut decryptor = VerifierBuilder::from_bytes(&message)
 		.to_eyre()?
 		.with_policy(POLICY, None, helper)
@@ -36,8 +35,7 @@ pub(crate) fn verify(message: &[u8], sender: Cert) -> eyre::Result<Vec<u8>> {
 	Ok(out)
 }
 
-pub(crate) fn decrypt(ciphertext: &[u8], recipient: Cert) -> eyre::Result<Vec<u8>> {
-	let helper = Helper::new(&[], &[recipient])?;
+pub(crate) fn decrypt(ciphertext: &[u8], helper: ReceiveHelper) -> eyre::Result<Vec<u8>> {
 	let mut decryptor = DecryptorBuilder::from_bytes(ciphertext)
 		.to_eyre()?
 		.with_policy(POLICY, None, helper)
@@ -53,30 +51,31 @@ pub(crate) fn decrypt(ciphertext: &[u8], recipient: Cert) -> eyre::Result<Vec<u8
 /// This helper provides secrets for the decryption, fetches public
 /// keys for the signature verification and implements the
 /// verification policy.
-struct Helper {
-	certs: Vec<Cert>,
-	secret_keys: HashMap<KeyID, Key<SecretParts, UnspecifiedRole>>,
+#[derive(Debug)]
+pub(crate) struct ReceiveHelper<'a> {
+	secrets: HashMap<KeyID, Key<SecretParts, UnspecifiedRole>>,
+	public_certs: &'a [Cert],
 	hints: HashMap<KeyID, String>,
 }
 
-impl Helper {
+impl<'a> ReceiveHelper<'a> {
 	/// Creates a Helper for the given Certs with appropriate secrets.
-	fn new(secrets: &[Cert], public_certs: &[Cert]) -> eyre::Result<Self> {
-		let mut secret_keys: HashMap<KeyID, Key<SecretParts, UnspecifiedRole>> = HashMap::new();
+	pub(crate) fn new(private_certs: &[Cert], public_certs: &'a [Cert]) -> eyre::Result<Self> {
+		let mut secrets: HashMap<KeyID, Key<SecretParts, UnspecifiedRole>> = HashMap::new();
 		let mut hints = HashMap::new();
 
-		for secret_cert in secrets {
-			let identity = secret_cert
+		for private_cert in private_certs {
+			let identity = private_cert
 				.with_policy(POLICY, None)
 				.and_then(|cert| cert.primary_userid())
 				.ok()
 				.map_or_else(
-					|| format!("{}", secret_cert.keyid()),
-					|uid| format!("{} ({})", uid.userid(), secret_cert.keyid()),
+					|| format!("{}", private_cert.keyid()),
+					|uid| format!("{} ({})", uid.userid(), private_cert.keyid()),
 				);
-			hints.insert(secret_cert.keyid(), identity);
+			hints.insert(private_cert.keyid(), identity);
 
-			for ka in secret_cert
+			for ka in private_cert
 				.keys()
 				.with_policy(POLICY, None)
 				.for_transport_encryption()
@@ -88,13 +87,13 @@ impl Helper {
 					.to_eyre()
 					.wrap_err("Cert does not contain secret keys")?;
 
-				secret_keys.insert(ka.key().keyid(), secret_key.clone());
+				secrets.insert(ka.key().keyid(), secret_key.clone());
 			}
 		}
 
 		Ok(Self {
-			certs: public_certs.to_vec(),
-			secret_keys,
+			secrets,
+			public_certs,
 			hints,
 		})
 	}
@@ -123,16 +122,14 @@ impl Helper {
 	}
 }
 
-impl VerificationHelper for Helper {
+impl<'a> VerificationHelper for ReceiveHelper<'a> {
 	fn get_certs(&mut self, ids: &[KeyHandle]) -> sequoia_openpgp::Result<Vec<Cert>> {
 		let concerned_certs = self
-			.certs
+			.public_certs
 			.iter()
 			.filter(|cert| {
-				ids.iter().any(|handle| match handle {
-					KeyHandle::Fingerprint(fin) => fin == &cert.fingerprint(),
-					KeyHandle::KeyID(id) => id == &cert.keyid(),
-				})
+				ids.iter()
+					.any(|handle| handle == &cert.fingerprint().into())
 			})
 			.cloned()
 			.collect::<Vec<_>>();
@@ -160,7 +157,7 @@ impl VerificationHelper for Helper {
 }
 
 #[allow(clippy::similar_names)]
-impl DecryptionHelper for Helper {
+impl<'a> DecryptionHelper for ReceiveHelper<'a> {
 	fn decrypt<D>(
 		&mut self,
 		pkesks: &[packet::PKESK],
@@ -176,7 +173,7 @@ impl DecryptionHelper for Helper {
 		// First, we try those keys that we can use without prompting
 		// for a password.
 		for pkesk in pkesks {
-			if let Some(key) = self.secret_keys.get_mut(pkesk.recipient()) {
+			if let Some(key) = self.secrets.get_mut(pkesk.recipient()) {
 				if let Some(fingerprint) =
 					key.clone().into_keypair().ok().and_then(|kp| {
 						Self::try_decrypt(pkesk, sym_algo, Box::new(kp), &mut decrypt)
@@ -195,19 +192,20 @@ impl DecryptionHelper for Helper {
 			}
 
 			let keyid = pkesk.recipient();
-			if let Some(key) = self.secret_keys.get_mut(keyid) {
+			if let Some(key) = self.secrets.get_mut(keyid) {
 				let keypair: Box<dyn Decryptor> = loop {
 					if let Ok(keypair) = key.clone().into_keypair() {
 						break Box::new(keypair);
 					}
 
-					let prompt = format!(
+					let key_password = rpassword::prompt_password(format!(
 						"Enter password to decrypt key {}: ",
-						self.hints.get(keyid).unwrap()
-					);
-					let pass = rpassword::prompt_password(prompt)?.into();
+						self.hints
+							.get(keyid)
+							.expect("keyid come from the same source as hints")
+					))?;
 
-					match decrypt_key(key, &pass) {
+					match decrypt_key(key, &key_password.into()) {
 						Ok(decryptor) => break decryptor,
 						Err(error) => eprintln!("Could not unlock key: {error:?}"),
 					}

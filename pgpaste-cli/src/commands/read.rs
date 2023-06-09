@@ -1,23 +1,20 @@
 use crate::{
 	args::ReadArgs,
 	config::Config,
-	crypto::{decrypt, verify},
+	crypto::{decrypt, verify, ReceiveHelper},
 };
 use pgpaste_api_types::{api::ReadResponse, Visibility};
 use reqwest::{blocking::Client, header::HeaderValue, StatusCode, Url};
 
 #[allow(clippy::needless_pass_by_value)]
 pub(crate) fn read(args: ReadArgs, config: &Config) -> eyre::Result<()> {
-	let key = config
-		.keys
-		.clone()
-		.ok_or(eyre::eyre!("no signing cert found"))?;
-
 	let paste = get(config.server.clone(), &args.slug, &args)?;
+	let helper = ReceiveHelper::new(&config.private_keys, &config.public_keys)?;
 
 	let content = match paste.visibility {
-		Visibility::Public => verify(&paste.inner, key)?,
-		Visibility::Protected | Visibility::Private => decrypt(&paste.inner, key)?,
+		// TODO not the right cert
+		Visibility::Public => verify(&paste.inner, helper)?,
+		Visibility::Protected | Visibility::Private => decrypt(&paste.inner, helper)?,
 	};
 
 	println!("Your paste content:");

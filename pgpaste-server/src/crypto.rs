@@ -11,8 +11,7 @@ use std::io;
 
 const POLICY: &StandardPolicy = &StandardPolicy::new();
 
-pub(crate) fn verify(message: &[u8], cert: Cert) -> eyre::Result<()> {
-	let helper = Helper::new(&[cert]);
+pub(crate) fn verify(message: &[u8], helper: Helper) -> eyre::Result<()> {
 	let mut decryptor = VerifierBuilder::from_bytes(&message)
 		.to_eyre()?
 		.with_policy(POLICY, None, helper)
@@ -26,31 +25,25 @@ pub(crate) fn verify(message: &[u8], cert: Cert) -> eyre::Result<()> {
 /// This helper provides secrets for the decryption, fetches public
 /// keys for the signature verification and implements the
 /// verification policy.
-struct Helper {
-	certs: Vec<Cert>,
+pub(crate) struct Helper<'a> {
+	certs: &'a [Cert],
 }
 
-impl Helper {
+impl<'a> Helper<'a> {
 	/// Creates a Helper for the given Certs with appropriate secrets.
-	fn new(certs: &[Cert]) -> Self {
-		Self {
-			certs: certs.to_vec(),
-		}
+	pub(crate) const fn new(certs: &'a [Cert]) -> Self {
+		Self { certs }
 	}
 }
 
-impl VerificationHelper for Helper {
+impl<'a> VerificationHelper for Helper<'a> {
 	fn get_certs(&mut self, ids: &[KeyHandle]) -> sequoia_openpgp::Result<Vec<Cert>> {
-		dbg![ids];
-
 		let concerned_certs = self
 			.certs
 			.iter()
 			.filter(|cert| {
-				ids.iter().any(|handle| match handle {
-					KeyHandle::Fingerprint(fin) => fin == &cert.fingerprint(),
-					KeyHandle::KeyID(id) => id == &cert.keyid(),
-				})
+				ids.iter()
+					.any(|handle| handle == &cert.fingerprint().into())
 			})
 			.cloned()
 			.collect::<Vec<_>>();

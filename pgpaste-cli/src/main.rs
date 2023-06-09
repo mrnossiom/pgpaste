@@ -21,6 +21,8 @@ mod crypto;
 use crate::args::{Commands, PGPasteArgs};
 
 fn main() -> eyre::Result<()> {
+	pretty_env_logger::init();
+
 	let args = PGPasteArgs::parse();
 	let config = Config::new(&args)?;
 

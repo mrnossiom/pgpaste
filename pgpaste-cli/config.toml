@@ -1,2 +1,5 @@
 server = "http://localhost:3000"
-keys = "keys/key.asc"
+
+default_key = "E97D40FEB81C371BA169DC487EA9B7563C01CA5E"
+private_keys = ["keys/key.pgp"]
+public_keys = ["keys/key.pub.pgp"]

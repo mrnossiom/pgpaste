@@ -61,6 +61,10 @@ pub(crate) struct CreateArgs {
 	#[clap(long, value_parser = parsers::to_key_handle)]
 	pub(crate) recipient: Option<KeyHandle>,
 
+	// TODO: implement obscuring recipients
+	#[clap(long)]
+	pub(crate) obscure: bool,
+
 	#[clap(long)]
 	pub(crate) overwrite: bool,
 }

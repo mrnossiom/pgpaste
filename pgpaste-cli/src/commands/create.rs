@@ -1,51 +1,42 @@
 use crate::{
 	args::CreateArgs,
 	config::Config,
-	crypto::{encrypt, protect, sign},
-	ToEyreError,
+	crypto::{encrypt, protect, sign, SendHelper},
 };
-use async_compat::Compat;
+use eyre::ContextCompat;
 use pgpaste_api_types::{
 	api::{CreateBody, CreateResponse},
 	Visibility,
 };
 use reqwest::{blocking::Client, header, Method, StatusCode, Url};
 use rpassword::prompt_password;
-use sequoia_net::{KeyServer, Policy};
-use smol::block_on;
-use std::borrow::Cow;
 
 #[allow(clippy::needless_pass_by_value)]
 pub(crate) fn create(args: CreateArgs, config: &Config) -> eyre::Result<()> {
-	let key = config
-		.keys
-		.clone()
-		.ok_or(eyre::eyre!("no signing cert found"))?;
 	let content = args.content()?;
+	let helper = SendHelper::new(
+		&config
+			.default_key
+			.clone()
+			.wrap_err("you need to choose a key")?,
+		&config.private_keys,
+		&config.public_keys,
+	)?;
 
 	let bytes = match args.mode {
-		Visibility::Public => sign(&content, &key)?,
+		Visibility::Public => sign(&content, &helper)?,
 		Visibility::Private => {
-			// TODO: get recipient key by handle using local keyring
-			let recipient_key = match &args.recipient {
-				Some(handle) => {
-					let mut key_server =
-						KeyServer::keys_openpgp_org(Policy::Encrypted).to_eyre()?;
+			let recipient = args
+				.recipient
+				.clone()
+				.or_else(|| config.default_key.clone())
+				.wrap_err("no recipient specified")?;
 
-					let cert = block_on(Compat::new(async {
-						key_server.get(handle.clone()).await.to_eyre()
-					}))?;
-
-					Cow::Owned(cert)
-				}
-				None => Cow::Borrowed(&key),
-			};
-
-			encrypt(&content, &key, &recipient_key)?
+			encrypt(&content, &helper, recipient)?
 		}
 		Visibility::Protected => {
-			let pass = prompt_password("Password: ")?;
-			protect(&content, &key, &pass)?
+			let paste_password = prompt_password("Password: ")?;
+			protect(&content, &helper, &paste_password)?
 		}
 	};
 

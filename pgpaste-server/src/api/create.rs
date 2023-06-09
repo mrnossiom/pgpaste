@@ -1,6 +1,6 @@
 use crate::{
 	api::extract::MsgPack,
-	crypto::verify,
+	crypto::{verify, Helper},
 	database::{
 		models::{NewPaste, NewPublicKey, PublicKey},
 		prelude::*,
@@ -51,7 +51,7 @@ pub(crate) async fn create_signed_paste(
 		Message::from_bytes(&content.inner).map_err(UserFacingServerError::InvalidCert)?;
 
 	// TODO: remove
-	tracing::debug!(parsed = ?message.descendants().collect::<Vec<_>>());
+	tracing::trace!(parsed = ?message.descendants().collect::<Vec<_>>());
 
 	let Some(fingerprint) = message.descendants().find_map(|p| {
 		if let Packet::Signature(Signature::V4(sig)) = p {
@@ -75,7 +75,11 @@ pub(crate) async fn create_signed_paste(
 		Cert::from_bytes(&key.cert).to_eyre()?
 	} else {
 		let mut key_server = KeyServer::keys_openpgp_org(Policy::Encrypted).to_eyre()?;
-		let cert = key_server.get(fingerprint).await.to_eyre()?;
+		let cert = key_server
+			.get(fingerprint)
+			.await
+			.to_eyre()
+			.wrap_err("cert unknown in public store")?;
 
 		let new_pub_key = NewPublicKey {
 			fingerprint: fingerprint.as_bytes(),
@@ -86,7 +90,9 @@ pub(crate) async fn create_signed_paste(
 		cert
 	};
 
-	if let Err(e) = verify(&content.inner, cert) {
+	let cert_vec = vec![cert];
+	let helper = Helper::new(&cert_vec);
+	if let Err(e) = verify(&content.inner, helper) {
 		return Err(UserFacingServerError::InvalidSignature(e).into());
 	};
 

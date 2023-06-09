@@ -31,7 +31,11 @@ async fn main() -> eyre::Result<()> {
 			EnvFilter::try_from_default_env()
 				.unwrap_or_else(|_| "info,pgpaste_server=debug".into()),
 		)
-		.with(tracing_subscriber::fmt::layer())
+		.with(
+			tracing_subscriber::fmt::layer()
+				.with_file(true)
+				.with_line_number(true),
+		)
 		.init();
 
 	let config = Config::from_dotenv()?;

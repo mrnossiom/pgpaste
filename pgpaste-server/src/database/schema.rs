@@ -12,6 +12,7 @@ diesel::table! {
 
     pastes (id) {
         id -> Int4,
+        #[max_length = 255]
         slug -> Varchar,
         visibility -> Visibility,
         content -> Bytea,
