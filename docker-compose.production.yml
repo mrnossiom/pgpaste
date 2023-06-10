@@ -1,0 +1,47 @@
+version: '3.7'
+
+networks:
+    caddy:
+    database:
+
+
+services:
+    client:
+        # TODO: change the tag to latest
+        image: ghcr.io/mrnossiom/pgpaste-server:dev
+        volumes:
+            - .env.docker:/pgpaste-server/.env
+        depends_on:
+            database:
+                condition: service_healthy
+        networks: [ database, caddy ]
+
+    # MySQL database
+    database:
+        image: postgres
+        restart: unless-stopped
+        environment:
+            POSTGRES_DATABASE: server
+            POSTGRES_USER: server
+            POSTGRES_PASSWORD: server
+        volumes:
+            - ./.database:/var/lib/postgresql/data
+        healthcheck:
+            test: pg_isready -h 127.0.0.1 -U $$POSTGRES_USER
+            timeout: 2s
+            retries: 20
+        networks: [ database ]
+
+    # Reverse proxy for the server
+    caddy:
+        image: caddy:latest
+        restart: unless-stopped
+        ports:
+            - 80:80
+            - 443:443
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile
+            - ./.caddy/site:/srv
+            - ./.caddy/caddy_data:/data
+            - ./.caddy/caddy_config:/config
+        networks: [ caddy ]

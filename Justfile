@@ -13,13 +13,13 @@ run-server:
 
 # Starts the docker compose file with the provided scope
 up SCOPE:
-	cd {{invocation_directory()}}; docker compose --file docker-compose.{{SCOPE}}.yml up -d
+	docker compose --file docker-compose.{{SCOPE}}.yml up -d
 # Stops the docker compose file with the provided scope
 down SCOPE:
-	cd {{invocation_directory()}}; docker compose --file docker-compose.{{SCOPE}}.yml down
+	docker compose --file docker-compose.{{SCOPE}}.yml down
 # Builds the docker image with the provided tag
-build TAG:
-	docker build . -t ghcr.io/mrnossiom/{{container-name}}:{{TAG}}
+build TAG *ARGS:
+	docker build . -t ghcr.io/mrnossiom/{{container-name}}:{{TAG}} {{ARGS}}
 
 # Retrieves the IP address of the local database
 local-db-ip:

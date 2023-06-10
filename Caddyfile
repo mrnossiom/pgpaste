@@ -1,0 +1,12 @@
+{
+	email milomoisson@gmail.com
+
+	log {
+		output stdout
+		format json
+	}
+}
+
+pgpaste.wiros.tech {
+	reverse_proxy client:3000
+}

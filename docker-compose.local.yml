@@ -7,7 +7,7 @@ networks:
 services:
     database:
         image: postgres
-        restart: unless-stopped
+        restart: no
         environment:
             POSTGRES_DATABASE: server
             POSTGRES_USER: server
