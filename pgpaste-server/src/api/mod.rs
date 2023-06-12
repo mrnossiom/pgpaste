@@ -1,3 +1,5 @@
+//! API routes and handlers
+
 use crate::AppState;
 use axum::{
 	extract::DefaultBodyLimit,
@@ -8,6 +10,7 @@ use axum::{
 mod create;
 mod read;
 
+/// The API routes definition
 pub(crate) fn api_router() -> Router<AppState> {
 	Router::new()
 		.route(
@@ -23,6 +26,7 @@ pub(crate) fn api_router() -> Router<AppState> {
 		.layer(DefaultBodyLimit::max(2 * 1024))
 }
 
+/// Custom axum extractors
 mod extract {
 	use axum::{
 		async_trait,
@@ -36,6 +40,7 @@ mod extract {
 	use rmp_serde::{to_vec, Deserializer};
 	use serde::{de::DeserializeOwned, Serialize};
 
+	/// Implementation for `MsgPack` extractor
 	pub struct MsgPack<T>(pub T);
 
 	#[async_trait]
@@ -50,7 +55,7 @@ mod extract {
 		type Rejection = MsgPackRejection;
 
 		async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
-			if !dlhn_content_type(req.headers()) {
+			if !has_msgpack_content_type(req.headers()) {
 				return Err(MsgPackRejection::MissingMsgPackContentType);
 			}
 
@@ -63,7 +68,8 @@ mod extract {
 		}
 	}
 
-	fn dlhn_content_type(headers: &HeaderMap) -> bool {
+	/// Whether the request has a msgpack content type
+	fn has_msgpack_content_type(headers: &HeaderMap) -> bool {
 		let Some(content_type) = headers.get(header::CONTENT_TYPE) else { return false; };
 		let Ok(content_type) = content_type.to_str() else { return false; };
 		let Ok(mime) = content_type.parse::<mime::Mime>() else { return false; };
@@ -123,10 +129,13 @@ mod extract {
 	#[non_exhaustive]
 	#[derive(Debug, thiserror::Error)]
 	pub enum MsgPackRejection {
+		/// The request body could not be read
 		#[error(transparent)]
 		Bytes(#[from] BytesRejection),
+		/// The request body could not be deserialized
 		#[error(transparent)]
 		Decode(#[from] rmp_serde::decode::Error),
+		/// The request is missing a msgpack content type
 		#[error("missing dlhn content type")]
 		MissingMsgPackContentType,
 	}

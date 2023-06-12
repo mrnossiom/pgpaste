@@ -1,3 +1,5 @@
+//! Implementation of the `create` subcommand
+
 use crate::{
 	args::CreateArgs,
 	config::Config,
@@ -12,6 +14,7 @@ use reqwest::{blocking::Client, header, Method, StatusCode, Url};
 use rpassword::prompt_password;
 
 #[allow(clippy::needless_pass_by_value)]
+/// Create a paste on the server
 pub(crate) fn create(args: CreateArgs, config: &Config) -> eyre::Result<()> {
 	let content = args.content()?;
 	let helper = SendHelper::new(
@@ -40,14 +43,15 @@ pub(crate) fn create(args: CreateArgs, config: &Config) -> eyre::Result<()> {
 		}
 	};
 
-	let res = post(config.server.clone(), bytes, &args.slug, &args)?;
+	let res = post_paste(config.server.clone(), bytes, &args.slug, &args)?;
 
 	println!("Your paste is available with the slug `{}`", res.slug);
 
 	Ok(())
 }
 
-fn post(
+/// Post a paste to the server
+fn post_paste(
 	mut server: Url,
 	content: Vec<u8>,
 	slug: &Option<String>,

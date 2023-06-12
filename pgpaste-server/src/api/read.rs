@@ -1,3 +1,5 @@
+//! Routes handlers for reading pastes
+
 use super::extract::MsgPack;
 use crate::{
 	database::{models::Paste, prelude::*},

@@ -1,3 +1,5 @@
+//! Create and encrypt pastes.
+
 use super::POLICY;
 use crate::ToEyreError;
 use async_compat::Compat;
@@ -80,12 +82,17 @@ pub(crate) fn encrypt(
 	Ok(encrypted_message)
 }
 
+/// A helper to create and encrypt pastes.
 #[derive(Debug)]
 pub(crate) struct SendHelper<'a> {
+	/// The cert used for signing and/or encrypting.
 	default_cert: &'a Cert,
 
-	private_certs: &'a [Cert],
+	/// Private certs used for signing.
+	_private_certs: &'a [Cert],
+	/// Public certs used for encryption.
 	public_certs: &'a [Cert],
+	/// Hints used when prompting the user to decrypt their key.
 	hints: HashMap<KeyID, String>,
 }
 
@@ -120,12 +127,13 @@ impl<'a> SendHelper<'a> {
 		Ok(Self {
 			default_cert,
 
-			private_certs,
+			_private_certs: private_certs,
 			public_certs,
 			hints,
 		})
 	}
 
+	/// The keypair to use when signing pastes
 	pub(crate) fn signing_key(&self) -> eyre::Result<KeyPair> {
 		let mut iter = self
 			.default_cert
@@ -167,6 +175,7 @@ impl<'a> SendHelper<'a> {
 		Ok(key.into_keypair().expect("key was decrypted"))
 	}
 
+	/// Returns the cert for the given key handle whether it is in the cache or by fetching it
 	fn get_cert(&self, recipient: KeyHandle) -> eyre::Result<Cow<'a, Cert>> {
 		let cached_cert = self
 			.public_certs
@@ -182,6 +191,7 @@ impl<'a> SendHelper<'a> {
 	}
 }
 
+/// Fetches the given key from the wellknown `OpenPGP` keyserver.
 fn fetch_key_handle(key: KeyHandle) -> eyre::Result<Cert> {
 	let mut key_server = KeyServer::keys_openpgp_org(Policy::Encrypted).to_eyre()?;
 

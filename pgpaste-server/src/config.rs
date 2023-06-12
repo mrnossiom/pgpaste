@@ -1,3 +1,5 @@
+//! State and configuration
+
 use diesel_async::{
 	pooled_connection::{deadpool::Pool, AsyncDieselConnectionManager},
 	AsyncPgConnection,
@@ -51,9 +53,12 @@ impl Config {
 	}
 }
 
+/// App global state
 #[derive(Clone)]
 pub(crate) struct AppState {
+	/// Current config
 	pub(crate) config: Config,
+	/// Database connection pool
 	pub(crate) database: Pool<AsyncPgConnection>,
 }
 
@@ -64,6 +69,7 @@ impl fmt::Debug for AppState {
 }
 
 impl AppState {
+	/// Initialize the app state
 	pub(crate) fn new(config: Config) -> eyre::Result<Self> {
 		let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(
 			config.database_url.expose_secret(),

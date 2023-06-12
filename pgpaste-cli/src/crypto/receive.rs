@@ -1,3 +1,6 @@
+//! Decrypting and verifying messages
+
+use super::POLICY;
 use crate::ToEyreError;
 use eyre::WrapErr;
 use sequoia_openpgp::{
@@ -14,14 +17,12 @@ use sequoia_openpgp::{
 		},
 		Parse,
 	},
-	policy::StandardPolicy,
 	types::SymmetricAlgorithm,
 	Cert, Fingerprint, KeyHandle, KeyID,
 };
 use std::{collections::HashMap, io};
 
-const POLICY: &StandardPolicy = &StandardPolicy::new();
-
+/// Verify the given message with the given helper.
 pub(crate) fn verify(message: &[u8], helper: ReceiveHelper) -> eyre::Result<Vec<u8>> {
 	let mut decryptor = VerifierBuilder::from_bytes(&message)
 		.to_eyre()?
@@ -34,6 +35,7 @@ pub(crate) fn verify(message: &[u8], helper: ReceiveHelper) -> eyre::Result<Vec<
 	Ok(out)
 }
 
+/// Decrypt the given message with the given helper.
 pub(crate) fn decrypt(ciphertext: &[u8], helper: ReceiveHelper) -> eyre::Result<Vec<u8>> {
 	let mut decryptor = DecryptorBuilder::from_bytes(ciphertext)
 		.to_eyre()?
@@ -51,8 +53,11 @@ pub(crate) fn decrypt(ciphertext: &[u8], helper: ReceiveHelper) -> eyre::Result<
 /// verification policy.
 #[derive(Debug)]
 pub(crate) struct ReceiveHelper<'a> {
+	/// The certs used for decrypting
 	secrets: HashMap<KeyID, Key<SecretParts, UnspecifiedRole>>,
+	/// The certs used for verification
 	public_certs: &'a [Cert],
+	/// Hints used when prompting the user to decrypt their key.
 	hints: HashMap<KeyID, String>,
 }
 
@@ -96,6 +101,7 @@ impl<'a> ReceiveHelper<'a> {
 		})
 	}
 
+	/// Returns the identity of the given key if it is able to decrypt it
 	fn try_decrypt<D>(
 		pkesk: &packet::PKESK,
 		sym_algo: Option<SymmetricAlgorithm>,
@@ -241,6 +247,7 @@ impl<'a> DecryptionHelper for ReceiveHelper<'a> {
 	}
 }
 
+/// Decrypts an encrypted secret key
 fn decrypt_key(
 	key: &mut Key<SecretParts, UnspecifiedRole>,
 	pass: &crypto::Password,

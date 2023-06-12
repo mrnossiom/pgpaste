@@ -1,3 +1,5 @@
+//! Implementations of the CLI commands
+
 mod create;
 mod read;
 

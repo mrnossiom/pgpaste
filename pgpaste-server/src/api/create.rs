@@ -1,8 +1,10 @@
+//! Routes handlers for creating pastes
+
 use crate::{
 	api::extract::MsgPack,
 	crypto::{verify, Helper},
 	database::{
-		models::{NewPaste, NewPublicKey, Paste, PublicKey},
+		models::{NewPaste, NewPublicKey, PublicKey},
 		prelude::*,
 		schema::{pastes, public_keys},
 	},
@@ -22,7 +24,9 @@ use sequoia_openpgp::{
 };
 use std::time::{Duration, SystemTime};
 
+/// A year
 const YEAR: Duration = Duration::from_secs(60 * 60 * 24 * 365);
+/// A week
 const WEEK: Duration = Duration::from_secs(60 * 60 * 24 * 7);
 
 #[tracing::instrument(skip(state, content))]
@@ -47,8 +51,9 @@ pub(crate) async fn create_signed_paste(
 		return Err(UserFacingServerError::InvalidBurnIn.into());
 	}
 
-	let message =
-		Message::from_bytes(&content.inner).map_err(UserFacingServerError::InvalidCert)?;
+	let message = Message::from_bytes(&content.inner)
+		.to_eyre()
+		.map_err(UserFacingServerError::InvalidCert)?;
 
 	let Some(fingerprint) = message.descendants().find_map(|p| {
 		if let Packet::Signature(Signature::V4(sig)) = p {

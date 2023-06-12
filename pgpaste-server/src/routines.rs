@@ -1,11 +1,14 @@
+//! Routines (background tasks that run periodically)
+
 use crate::{
 	config::AppState,
 	database::{models::Paste, prelude::*},
 };
 use tokio::{task::JoinHandle, time::Duration};
 
+/// Setup all routines
 pub(crate) async fn setup_routines(state: AppState) -> eyre::Result<()> {
-	// Setup cleanup burnt pastes routine
+	// Setup cleanup burnt pastes routine every hour
 	set_interval(
 		state.clone(),
 		Duration::from_secs(60 * 60),
@@ -16,6 +19,7 @@ pub(crate) async fn setup_routines(state: AppState) -> eyre::Result<()> {
 	Ok(())
 }
 
+/// Routine to delete burnt or outdated pastes
 #[tracing::instrument(skip(state))]
 async fn delete_burnt_pastes(state: AppState) -> eyre::Result<()> {
 	let mut conn = state.database.get().await?;
@@ -27,6 +31,7 @@ async fn delete_burnt_pastes(state: AppState) -> eyre::Result<()> {
 	Ok(())
 }
 
+/// Run a future at a fixed interval
 pub(crate) async fn set_interval<T, F>(
 	state: AppState,
 	interval: std::time::Duration,

@@ -1,3 +1,5 @@
+//! Implementation of the `read` subcommand
+
 use crate::{
 	args::ReadArgs,
 	config::Config,
@@ -7,8 +9,9 @@ use pgpaste_api_types::{api::ReadResponse, Visibility};
 use reqwest::{blocking::Client, header::HeaderValue, StatusCode, Url};
 
 #[allow(clippy::needless_pass_by_value)]
+/// Read a paste from the server
 pub(crate) fn read(args: ReadArgs, config: &Config) -> eyre::Result<()> {
-	let paste = get(config.server.clone(), &args.slug, &args)?;
+	let paste = get_paste(config.server.clone(), &args.slug, &args)?;
 	let helper = ReceiveHelper::new(&config.private_keys, &config.public_keys)?;
 
 	let content = match paste.visibility {
@@ -22,7 +25,8 @@ pub(crate) fn read(args: ReadArgs, config: &Config) -> eyre::Result<()> {
 	Ok(())
 }
 
-fn get(mut server: Url, slug: &str, _args: &ReadArgs) -> eyre::Result<ReadResponse> {
+/// Get a paste from the server
+fn get_paste(mut server: Url, slug: &str, _args: &ReadArgs) -> eyre::Result<ReadResponse> {
 	let client = Client::default();
 
 	server.set_path(&format!("/api/paste/{slug}"));

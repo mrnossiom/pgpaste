@@ -1,18 +1,26 @@
+//! Error types returned by handlers
+
 use axum::{
 	http::StatusCode,
 	response::{IntoResponse, Response},
 };
 use diesel_async::pooled_connection::deadpool;
 
+/// Error type returned by path handlers
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ServerError {
+	// -- Internal server errors
+	/// Generic error with context
 	#[error(transparent)]
 	Eyre(#[from] eyre::Report),
+	/// Database transaction error
 	#[error("Diesel error: {0}")]
 	Database(#[from] diesel::result::Error),
+	/// Database pool connection error
 	#[error("DbPool error: {0}")]
 	Pool(#[from] deadpool::PoolError),
 
+	/// Provide additional informations to the user
 	#[error(transparent)]
 	UserFacing(#[from] UserFacingServerError),
 }
@@ -31,19 +39,26 @@ impl IntoResponse for ServerError {
 }
 
 // TODO: change `anyhow::Error` to `sequoia_openpgp::Error` when 2.0 is released
+/// Error type that can provide additional informations to the user
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum UserFacingServerError {
+	/// Invalid content type
 	#[error("Invalid content type")]
 	InvalidContentType,
+	/// Invalid cert
 	#[error("Invalid cert")]
-	InvalidCert(anyhow::Error),
+	InvalidCert(eyre::Error),
+	/// Invalid message structure
 	#[error("Invalid message structure")]
 	InvalidMessageStructure,
+	/// Invalid signature
 	#[error("Invalid signature")]
 	InvalidSignature(eyre::Error),
 
+	/// Queried paste not found
 	#[error("Paste not found")]
 	PasteNotFound,
+	/// Burn date is too far in the future
 	#[error("Burn date is too far in the future")]
 	InvalidBurnIn,
 }

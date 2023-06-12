@@ -1,5 +1,9 @@
+//! `pgpaste` server
+
 #![warn(
-	// clippy::missing_docs_in_private_items,
+	missing_docs,
+	clippy::missing_docs_in_private_items,
+	clippy::print_literal,
 	clippy::unwrap_used,
 	clippy::nursery,
 	clippy::pedantic,
@@ -58,7 +62,9 @@ async fn main() -> eyre::Result<()> {
 	Ok(())
 }
 
+/// Compat trait to interop between eyre and sequoia v1.x (anyhow) errors
 pub(crate) trait ToEyreError<T> {
+	/// Convert to eyre error
 	fn to_eyre(self) -> eyre::Result<T>;
 }
 

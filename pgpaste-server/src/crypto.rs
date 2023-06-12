@@ -1,3 +1,5 @@
+//! Certs verification module
+
 use crate::ToEyreError;
 use sequoia_openpgp::{
 	parse::{
@@ -9,8 +11,10 @@ use sequoia_openpgp::{
 };
 use std::io;
 
+/// Default policy used for certificate verification
 const POLICY: &StandardPolicy = &StandardPolicy::new();
 
+/// Parses and verify the given `OpenPGP` message
 pub(crate) fn verify(message: &[u8], helper: Helper) -> eyre::Result<()> {
 	let mut decryptor = VerifierBuilder::from_bytes(&message)
 		.to_eyre()?
@@ -26,6 +30,7 @@ pub(crate) fn verify(message: &[u8], helper: Helper) -> eyre::Result<()> {
 /// keys for the signature verification and implements the
 /// verification policy.
 pub(crate) struct Helper<'a> {
+	/// The certificates to use for verification.
 	certs: &'a [Cert],
 }
 

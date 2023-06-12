@@ -1,3 +1,5 @@
+//! CLI parsed configuration
+
 use crate::{args::PGPasteArgs, ToEyreError};
 use dirs::config_local_dir;
 use eyre::Context;
@@ -6,21 +8,28 @@ use sequoia_openpgp::{parse::Parse, Cert, KeyHandle};
 use serde::{Deserialize, Serialize};
 use std::{fs::read_to_string, path::PathBuf};
 
+/// Config scheme as represented on disk
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigScheme {
+	/// The pgpaste server to query
 	#[serde(default = "default_server")]
 	server: String,
 
+	/// The default key to use when encrypting or signing pastes
 	default_key: Option<String>,
+	/// A set of private keys to use when encrypting or decrypting pastes
 	private_keys: Option<Vec<PathBuf>>,
+	/// A set of public keys to use when signing or verifying pastes
 	public_keys: Option<Vec<PathBuf>>,
 }
 
+/// The default public instance of a pgpaste server
 fn default_server() -> String {
 	"https://pgpaste.org".into()
 }
 
 impl ConfigScheme {
+	/// Parse the config file for further processing
 	fn parse(args: &PGPasteArgs) -> eyre::Result<Self> {
 		let path = if let Some(ref path) = args.config {
 			path.clone()
@@ -48,16 +57,22 @@ impl ConfigScheme {
 	}
 }
 
+/// The real config parsed and used in code.
 #[derive(Debug)]
 pub(crate) struct Config {
+	/// The pgpaste server to query
 	pub(crate) server: Url,
 
+	/// The default key to use when encrypting or signing pastes
 	pub(crate) default_key: Option<KeyHandle>,
+	/// A set of private keys to use when encrypting or decrypting pastes
 	pub(crate) private_keys: Vec<Cert>,
+	/// A set of public keys to use when signing or verifying pastes
 	pub(crate) public_keys: Vec<Cert>,
 }
 
 impl Config {
+	/// Initialize the config
 	pub(crate) fn new(args: &PGPasteArgs) -> eyre::Result<Self> {
 		let config = ConfigScheme::parse(args)?;
 
@@ -82,6 +97,7 @@ impl Config {
 }
 
 // TODO: read certs from folders
+/// Read a list of certificates from a list of paths
 fn read_certs_list(paths: Vec<PathBuf>) -> Vec<Cert> {
 	let mut errors = Vec::new();
 
