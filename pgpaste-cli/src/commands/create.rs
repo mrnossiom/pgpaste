@@ -13,6 +13,8 @@ use pgpaste_api_types::{
 use reqwest::{blocking::Client, header, Method, StatusCode, Url};
 use rpassword::prompt_password;
 
+// TODO: fix the need to enter the password two times for private pastes
+
 #[allow(clippy::needless_pass_by_value)]
 /// Create a paste on the server
 pub(crate) fn create(args: CreateArgs, config: &Config) -> eyre::Result<()> {
@@ -26,7 +28,7 @@ pub(crate) fn create(args: CreateArgs, config: &Config) -> eyre::Result<()> {
 		&config.public_keys,
 	)?;
 
-	let bytes = match args.mode {
+	let message = match args.mode {
 		Visibility::Public => sign(&content, &helper)?,
 		Visibility::Private => {
 			let recipient = args
@@ -35,40 +37,43 @@ pub(crate) fn create(args: CreateArgs, config: &Config) -> eyre::Result<()> {
 				.or_else(|| config.default_key.clone())
 				.wrap_err("no recipient specified")?;
 
-			encrypt(&content, &helper, recipient)?
+			encrypt(&content, &helper, recipient, args.sign_private)?
 		}
 		Visibility::Protected => {
 			let paste_password = prompt_password("Password: ")?;
-			protect(&content, &helper, &paste_password)?
+			protect(&content, &helper, &paste_password, args.sign_private)?
 		}
 	};
 
-	let res = post_paste(config.server.clone(), bytes, &args.slug, &args)?;
+	#[cfg(debug_assertions)]
+	if let Some(path) = &args.dump_message {
+		std::fs::write(path, &message)?;
+		log::debug!("Wrote message to {}", path.display());
+	}
 
-	println!("Your paste is available with the slug `{}`", res.slug);
+	let query = CreateBody {
+		slug: args.slug.clone(),
+		mime: args.mime.clone().unwrap_or(mime::TEXT_PLAIN),
+		visibility: args.mode,
+		burn_in: args.burn_in()?,
+		burn_after_read: args.burn_after_read,
+		message,
+	};
+
+	let query = rmp_serde::to_vec(&query)?;
+
+	let signed_query = sign(&query, &helper)?;
+
+	let res = post_paste(&config.server, &args, signed_query)?;
+
+	log::info!("Your paste is available with the slug `{}`", res.slug);
 
 	Ok(())
 }
 
 /// Post a paste to the server
-fn post_paste(
-	mut server: Url,
-	content: Vec<u8>,
-	slug: &Option<String>,
-	args: &CreateArgs,
-) -> eyre::Result<CreateResponse> {
+fn post_paste(server: &Url, args: &CreateArgs, query: Vec<u8>) -> eyre::Result<CreateResponse> {
 	let client = Client::default();
-
-	let query = CreateBody {
-		slug: slug.clone(),
-		mime: args.mime.clone().unwrap_or(mime::TEXT_PLAIN),
-		visibility: args.mode,
-		burn_in: args.burn_in()?,
-		burn_after_read: args.burn_after_read,
-		inner: content,
-	};
-
-	server.set_path("/api/paste");
 
 	let method = if args.overwrite {
 		Method::PUT
@@ -77,9 +82,9 @@ fn post_paste(
 	};
 
 	let response = client
-		.request(method, server)
-		.header(header::CONTENT_TYPE, "application/msgpack")
-		.body(rmp_serde::to_vec(&query)?)
+		.request(method, server.join("/api/paste")?)
+		.header(header::CONTENT_TYPE, "application/pgp-signature")
+		.body(query)
 		.send()?;
 
 	let response = match response.status() {

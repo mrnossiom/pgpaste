@@ -1,5 +1,3 @@
-container-name := "pgpaste-server"
-
 _default:
 	@just --list --unsorted --list-heading '' --list-prefix '—— '
 
@@ -19,8 +17,8 @@ down SCOPE:
 	docker compose --file docker-compose.{{SCOPE}}.yml down
 # Builds the docker image with the provided tag
 build TAG *ARGS:
-	docker build . -t ghcr.io/mrnossiom/{{container-name}}:{{TAG}} {{ARGS}}
+	docker build . -t ghcr.io/mrnossiom/pgpaste-server:{{TAG}} {{ARGS}}
 
 # Retrieves the IP address of the local database
 local-db-ip:
-	@docker inspect -f {{"'{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"}} {{container-name}}-database-1
+	@docker inspect -f {{"'{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"}} pgpaste-database-1

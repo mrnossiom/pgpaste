@@ -12,12 +12,16 @@
 )]
 #![allow(clippy::redundant_pub_crate)]
 
+use std::fmt::Display;
+
 use crate::{
 	api::api_router,
 	config::{AppState, Config},
+	routes::pastes_router,
 	routines::setup_routines,
 };
 use axum::{Router, Server};
+use eyre::Context;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
@@ -26,6 +30,7 @@ mod config;
 mod crypto;
 mod database;
 mod error;
+mod routes;
 mod routines;
 
 #[tokio::main]
@@ -49,6 +54,8 @@ async fn main() -> eyre::Result<()> {
 
 	let app = Router::new()
 		.nest("/api", api_router())
+		.nest("/p", pastes_router())
+		// .route("/:*", web())
 		.layer(TraceLayer::new_for_http())
 		.with_state(state.clone());
 
@@ -66,6 +73,16 @@ async fn main() -> eyre::Result<()> {
 pub(crate) trait ToEyreError<T> {
 	/// Convert to eyre error
 	fn to_eyre(self) -> eyre::Result<T>;
+
+	/// Convert to eyre error and wrap with a message
+	#[inline]
+	fn to_wrap_err<D>(self, msg: D) -> eyre::Result<T>
+	where
+		Self: Sized,
+		D: Display + Send + Sync + 'static,
+	{
+		self.to_eyre().wrap_err(msg)
+	}
 }
 
 impl<T> ToEyreError<T> for sequoia_openpgp::Result<T> {

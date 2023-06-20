@@ -21,7 +21,7 @@ pub struct CreateBody {
 	/// Whether the paste should be deleted after reading
 	pub burn_after_read: bool,
 	/// The inner OpenPGP message
-	pub inner: Vec<u8>,
+	pub message: Vec<u8>,
 }
 
 /// `MsgPack` Body response for POST `/api/paste` endpoint

@@ -7,7 +7,7 @@ use mime::Mime;
 use pgpaste_api_types::Visibility;
 use sequoia_openpgp::{crypto::Password, KeyHandle};
 use std::{
-	io::{stdin, stdout, IsTerminal},
+	io::{stdin, stdout, IsTerminal, Read},
 	path::PathBuf,
 	time::Duration,
 };
@@ -49,6 +49,7 @@ pub(crate) enum Commands {
 
 /// Arguments to create a new paste
 #[derive(Debug, Args)]
+#[allow(clippy::struct_excessive_bools)]
 pub(crate) struct CreateArgs {
 	/// The slug of the paste to create
 	#[clap(long, short)]
@@ -61,6 +62,15 @@ pub(crate) struct CreateArgs {
 	/// The file to read the content from
 	#[clap(long, group = "message_content")]
 	file: Option<PathBuf>,
+
+	/// Whether private and protected pastes should be signed
+	#[clap(long)]
+	pub(crate) sign_private: bool,
+
+	/// Debug only: dump the created message to the given file
+	#[cfg(debug_assertions)]
+	#[clap(long)]
+	pub(crate) dump_message: Option<PathBuf>,
 
 	// TODO: guess mime type
 	/// The mime type of the content
@@ -98,13 +108,15 @@ pub(crate) struct CreateArgs {
 
 impl CreateArgs {
 	/// Get the content of the paste from different sources
-	pub(crate) fn content(&self) -> eyre::Result<String> {
+	pub(crate) fn content(&self) -> eyre::Result<Vec<u8>> {
 		let content = if let Some(content) = &self.content {
-			content.clone()
+			content.as_bytes().to_owned()
 		} else if let Some(file) = &self.file {
-			std::fs::read_to_string(file)?
+			std::fs::read(file)?
 		} else if stdout().is_terminal() {
-			std::io::read_to_string(stdin())?
+			let mut vec = Vec::new();
+			stdin().read_to_end(&mut vec)?;
+			vec
 		} else {
 			eyre::bail!("I could not get paste content by a `--file`, a `--content` or stdin.")
 		};

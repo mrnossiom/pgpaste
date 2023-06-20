@@ -15,45 +15,43 @@ use std::io;
 const POLICY: &StandardPolicy = &StandardPolicy::new();
 
 /// Parses and verify the given `OpenPGP` message
-pub(crate) fn verify(message: &[u8], helper: Helper) -> eyre::Result<()> {
+pub(crate) fn verify(message: &[u8], helper: SignatureHelper) -> eyre::Result<Vec<u8>> {
 	let mut decryptor = VerifierBuilder::from_bytes(&message)
 		.to_eyre()?
 		.with_policy(POLICY, None, helper)
 		.to_eyre()?;
 
-	io::copy(&mut decryptor, &mut io::sink())?;
+	let mut bytes = Vec::new();
+	io::copy(&mut decryptor, &mut bytes)?;
 
-	Ok(())
+	Ok(bytes)
 }
 
 /// This helper provides secrets for the decryption, fetches public
 /// keys for the signature verification and implements the
 /// verification policy.
-pub(crate) struct Helper<'a> {
-	/// The certificates to use for verification.
-	certs: &'a [Cert],
+pub(crate) struct SignatureHelper {
+	/// The certificate used for verification.
+	cert: Cert,
 }
 
-impl<'a> Helper<'a> {
-	/// Creates a Helper for the given Certs with appropriate secrets.
-	pub(crate) const fn new(certs: &'a [Cert]) -> Self {
-		Self { certs }
+impl SignatureHelper {
+	/// Creates a [`SignatureHelper`] for the given certificate.
+	pub(crate) const fn new(cert: Cert) -> Self {
+		Self { cert }
 	}
 }
 
-impl<'a> VerificationHelper for Helper<'a> {
+impl VerificationHelper for SignatureHelper {
 	fn get_certs(&mut self, ids: &[KeyHandle]) -> sequoia_openpgp::Result<Vec<Cert>> {
-		let concerned_certs = self
-			.certs
+		if ids
 			.iter()
-			.filter(|cert| {
-				ids.iter()
-					.any(|handle| handle == &cert.fingerprint().into())
-			})
-			.cloned()
-			.collect::<Vec<_>>();
-
-		Ok(concerned_certs)
+			.any(|handle| handle == &self.cert.fingerprint().into())
+		{
+			Ok(vec![self.cert.clone()])
+		} else {
+			Ok(vec![])
+		}
 	}
 
 	// TODO: implement message structure verification policy

@@ -7,6 +7,8 @@ create table public_keys
     cert        bytea              not null,
     fingerprint bytea              not null unique,
 
+    -- TODO: maybe users should be validated with a valid email address?
+    -- ex: is_validated bool default false not null,
     is_premium  bool default false not null
 );
 

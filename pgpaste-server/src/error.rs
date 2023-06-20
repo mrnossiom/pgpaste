@@ -13,16 +13,13 @@ pub(crate) enum ServerError {
 	/// Generic error with context
 	#[error(transparent)]
 	Eyre(#[from] eyre::Report),
-	/// Database transaction error
-	#[error("Diesel error: {0}")]
-	Database(#[from] diesel::result::Error),
 	/// Database pool connection error
 	#[error("DbPool error: {0}")]
 	Pool(#[from] deadpool::PoolError),
 
 	/// Provide additional informations to the user
 	#[error(transparent)]
-	UserFacing(#[from] UserFacingServerError),
+	User(#[from] UserServerError),
 }
 
 impl IntoResponse for ServerError {
@@ -30,10 +27,8 @@ impl IntoResponse for ServerError {
 		tracing::error!(error = ?self);
 
 		match self {
-			Self::Database(_) | Self::Eyre(_) | Self::Pool(_) => {
-				StatusCode::INTERNAL_SERVER_ERROR.into_response()
-			}
-			Self::UserFacing(error) => error.into_response(),
+			Self::Eyre(_) | Self::Pool(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+			Self::User(error) => error.into_response(),
 		}
 	}
 }
@@ -41,10 +36,7 @@ impl IntoResponse for ServerError {
 // TODO: change `anyhow::Error` to `sequoia_openpgp::Error` when 2.0 is released
 /// Error type that can provide additional informations to the user
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum UserFacingServerError {
-	/// Invalid content type
-	#[error("Invalid content type")]
-	InvalidContentType,
+pub(crate) enum UserServerError {
 	/// Invalid cert
 	#[error("Invalid cert")]
 	InvalidCert(eyre::Error),
@@ -55,22 +47,41 @@ pub(crate) enum UserFacingServerError {
 	#[error("Invalid signature")]
 	InvalidSignature(eyre::Error),
 
+	/// Certificate is not known within the default keyserver `keys.openpgp.org`
+	#[error("Certificate is not known within the default keyserver `keys.openpgp.org`")]
+	CertUnknown(eyre::Error),
+
+	/// TODO
+	#[error("Certificate is not known within the default keyserver `keys.openpgp.org`")]
+	MsgPackBodyIsInvalid(#[from] rmp_serde::decode::Error),
+
 	/// Queried paste not found
 	#[error("Paste not found")]
 	PasteNotFound,
 	/// Burn date is too far in the future
 	#[error("Burn date is too far in the future")]
 	InvalidBurnIn,
+
+	/// Paste is private and cannot be accessed like this
+	#[error("Paste is private and cannot be accessed like this")]
+	PasteIsPrivate,
+
+	/// Paste is protected and cannot be accessed without a password
+	#[error("Paste is protected and cannot be accessed without a password")]
+	PasteIsProtected,
 }
 
-impl IntoResponse for UserFacingServerError {
+impl IntoResponse for UserServerError {
 	fn into_response(self) -> Response {
 		let code = match self {
 			Self::InvalidCert(_)
-			| Self::InvalidContentType
 			| Self::InvalidMessageStructure
 			| Self::InvalidBurnIn
-			| Self::InvalidSignature(_) => StatusCode::BAD_REQUEST,
+			| Self::InvalidSignature(_)
+			| Self::CertUnknown(_)
+			| Self::MsgPackBodyIsInvalid(_)
+			| Self::PasteIsPrivate
+			| Self::PasteIsProtected => StatusCode::BAD_REQUEST,
 
 			Self::PasteNotFound => StatusCode::NOT_FOUND,
 		};

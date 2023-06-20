@@ -3,7 +3,7 @@
 use super::extract::MsgPack;
 use crate::{
 	database::{models::Paste, prelude::*},
-	error::{ServerError, UserFacingServerError},
+	error::{ServerError, UserServerError},
 	AppState,
 };
 use axum::{
@@ -29,13 +29,13 @@ pub(crate) async fn get_paste(
 		.optional()
 		.wrap_err("Failed to load paste")? else
 	{
-		return Err(UserFacingServerError::PasteNotFound.into());
+		return Err(UserServerError::PasteNotFound.into());
 	};
 
 	let res = ReadResponse {
 		slug: paste.slug,
 		mime: paste.mime.into(),
-		visibility: paste.visibility.into(),
+		visibility: (&paste.visibility).into(),
 		inner: paste.content,
 		burn_at: SystemTime::now(),
 	};

@@ -14,7 +14,7 @@ publish = true
 
 [dependencies]
 anyhow = "1.0.71"
-axum = "0.6.18"
+axum = { version = "0.6.18", features = ["tracing", "macros"] }
 bytes = "1.4.0"
 diesel = { version = "2.1.0", features = ["postgres"] }
 diesel-async = { version = "0.3.1", features = ["postgres", "deadpool"] }

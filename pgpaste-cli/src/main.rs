@@ -3,7 +3,6 @@
 #![warn(
 	missing_docs,
 	clippy::missing_docs_in_private_items,
-	clippy::print_literal,
 	clippy::unwrap_used,
 	clippy::nursery,
 	clippy::pedantic,
@@ -15,7 +14,8 @@
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use config::Config;
-use std::io;
+use eyre::Context;
+use std::{fmt::Display, io};
 
 mod args;
 mod commands;
@@ -55,6 +55,16 @@ fn main() -> eyre::Result<()> {
 pub(crate) trait ToEyreError<T> {
 	/// Convert to eyre error
 	fn to_eyre(self) -> eyre::Result<T>;
+
+	/// Convert to eyre error and wrap with a message
+	#[inline]
+	fn to_wrap_err<D>(self, msg: D) -> eyre::Result<T>
+	where
+		Self: Sized,
+		D: Display + Send + Sync + 'static,
+	{
+		self.to_eyre().wrap_err(msg)
+	}
 }
 
 impl<T> ToEyreError<T> for sequoia_openpgp::Result<T> {

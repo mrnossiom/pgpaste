@@ -14,7 +14,7 @@ use sequoia_openpgp::{
 use std::{borrow::Cow, collections::HashMap, io::Write};
 
 /// Signs the given message.
-pub(crate) fn sign(plaintext: &str, helper: &SendHelper) -> eyre::Result<Vec<u8>> {
+pub(crate) fn sign(content: &[u8], helper: &SendHelper) -> eyre::Result<Vec<u8>> {
 	let keypair = helper.signing_key()?;
 
 	let mut signed_message: Vec<u8> = Vec::new();
@@ -22,43 +22,50 @@ pub(crate) fn sign(plaintext: &str, helper: &SendHelper) -> eyre::Result<Vec<u8>
 	let signer = Signer::new(message, keypair).build().to_eyre()?;
 	let mut literal = LiteralWriter::new(signer).build().to_eyre()?;
 
-	literal.write_all(plaintext.as_bytes())?;
+	literal.write_all(content)?;
 	literal.finalize().to_eyre()?;
 
 	Ok(signed_message)
 }
 
+// IDEA: merge protect and encrypt into one function
+
 /// Signs the given message and protect it with a user password.
 pub(crate) fn protect(
-	plaintext: &str,
+	content: &[u8],
 	helper: &SendHelper,
 	password: &str,
+	sign: bool,
 ) -> eyre::Result<Vec<u8>> {
-	let keypair = helper.signing_key()?;
-
 	// Start streaming an OpenPGP message.
 	let mut signed_message: Vec<u8> = Vec::new();
 	let message = Message::new(&mut signed_message);
-	let signer = Signer::new(message, keypair).build().to_eyre()?;
-	let literal = LiteralWriter::new(signer).build().to_eyre()?;
-	let mut encryptor = Encryptor::with_passwords(literal, [password])
+
+	let next = if sign {
+		let keypair = helper.signing_key()?;
+		Signer::new(message, keypair).build().to_eyre()?
+	} else {
+		message
+	};
+
+	let encryptor = Encryptor::with_passwords(next, [password])
 		.build()
 		.to_eyre()?;
+	let mut literal = LiteralWriter::new(encryptor).build().to_eyre()?;
 
-	encryptor.write_all(plaintext.as_bytes())?;
-	encryptor.finalize().to_eyre()?;
+	literal.write_all(content)?;
+	literal.finalize().to_eyre()?;
 
 	Ok(signed_message)
 }
 
 /// Encrypts the given message.
 pub(crate) fn encrypt(
-	plaintext: &str,
+	content: &[u8],
 	helper: &SendHelper,
 	recipient: KeyHandle,
+	sign: bool,
 ) -> eyre::Result<Vec<u8>> {
-	let keypair = helper.signing_key()?;
-
 	let recipient_cert = helper.get_cert(recipient)?;
 	let recipients = recipient_cert
 		.keys()
@@ -70,14 +77,21 @@ pub(crate) fn encrypt(
 
 	let mut encrypted_message = Vec::new();
 	let message = Message::new(&mut encrypted_message);
-	let signer = Signer::new(message, keypair).build().to_eyre()?;
-	let literal = LiteralWriter::new(signer).build().to_eyre()?;
-	let mut encryptor = Encryptor::for_recipients(literal, recipients)
+
+	let next = if sign {
+		let keypair = helper.signing_key()?;
+		Signer::new(message, keypair).build().to_eyre()?
+	} else {
+		message
+	};
+
+	let encryptor = Encryptor::for_recipients(next, recipients)
 		.build()
 		.to_eyre()?;
+	let mut literal = LiteralWriter::new(encryptor).build().to_eyre()?;
 
-	encryptor.write_all(plaintext.as_bytes())?;
-	encryptor.finalize().to_eyre()?;
+	literal.write_all(content)?;
+	literal.finalize().to_eyre()?;
 
 	Ok(encrypted_message)
 }

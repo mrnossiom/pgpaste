@@ -2,26 +2,25 @@
 
 use crate::{
 	api::extract::MsgPack,
-	crypto::{verify, Helper},
+	crypto::{verify, SignatureHelper},
 	database::{
-		models::{NewPaste, NewPublicKey, PublicKey},
+		models::{Certificate, NewPaste, NewPublicKey, PublicKey},
 		prelude::*,
 		schema::{pastes, public_keys},
 	},
-	error::{ServerError, UserFacingServerError},
+	error::{ServerError, UserServerError},
 	AppState, ToEyreError,
 };
 use axum::{
+	body::Bytes,
 	extract::State,
-	http::{header, HeaderMap, HeaderValue, Method, StatusCode},
+	http::{HeaderMap, Method, StatusCode},
 	response::IntoResponse,
 };
 use eyre::Context;
 use pgpaste_api_types::api::{CreateBody, CreateResponse};
 use sequoia_net::{KeyServer, Policy};
-use sequoia_openpgp::{
-	packet::Signature, parse::Parse, serialize::MarshalInto, Cert, Message, Packet,
-};
+use sequoia_openpgp::{packet::Signature, parse::Parse, serialize::MarshalInto, Message, Packet};
 use std::time::{Duration, SystemTime};
 
 /// A year
@@ -34,105 +33,126 @@ pub(crate) async fn create_signed_paste(
 	State(state): State<AppState>,
 	headers: HeaderMap,
 	method: Method,
-	MsgPack(content): MsgPack<CreateBody>,
+	content: Bytes,
 ) -> Result<impl IntoResponse, ServerError> {
 	let mut conn = state.database.get().await?;
-	let slug = content.slug.unwrap_or_else(|| petname::petname(4, "-"));
-	// TODO: take into account if the user can overwrite
-	let overwrite = method == Method::PUT;
 
-	if let Some(content_type) = headers.get(header::CONTENT_TYPE) {
-		if content_type != HeaderValue::from_static(mime::APPLICATION_MSGPACK.as_ref()) {
-			return Err(UserFacingServerError::InvalidContentType.into());
-		}
-	}
+	// TODO: check content type
 
-	if content.burn_in > Some(YEAR) {
-		return Err(UserFacingServerError::InvalidBurnIn.into());
-	}
-
-	let message = Message::from_bytes(&content.inner)
+	let signed_paste = Message::from_bytes(&content)
 		.to_eyre()
-		.map_err(UserFacingServerError::InvalidCert)?;
+		.map_err(UserServerError::InvalidCert)?;
 
-	let Some(fingerprint) = message.descendants().find_map(|p| {
-		if let Packet::Signature(Signature::V4(sig)) = p {
-			sig.issuer_fingerprints().next()
-		} else {
-			None
-		}
-	}) else {
-		return Err(UserFacingServerError::InvalidMessageStructure.into());
-	};
+	let fingerprint = signed_paste
+		.descendants()
+		.find_map(|p| match p {
+			Packet::Signature(Signature::V4(sig)) => sig.issuer_fingerprints().next(),
+			_ => None,
+		})
+		.ok_or(UserServerError::InvalidMessageStructure)?;
 
-	let pub_key = PublicKey::with_fingerprint(fingerprint)
-		.first::<PublicKey>(&mut conn)
+	let cert = if let Some(cert) = PublicKey::with_fingerprint(fingerprint)
+		.select(public_keys::cert)
+		.first::<Certificate>(&mut conn)
 		.await
 		.optional()
-		.wrap_err("could not get public key profile")?;
-
-	let (cert, id) = if let Some(key) = pub_key {
-		// TODO: check rates and premium
-		let cert = Cert::from_bytes(&key.cert).to_eyre()?;
-
-		(cert, key.id)
+		.wrap_err("could not get public key profile")?
+	{
+		cert.into()
 	} else {
+		// TODO: actually seems vulnerable, since we could be rate-limited by the keyserver
+
 		let mut key_server = KeyServer::keys_openpgp_org(Policy::Encrypted).to_eyre()?;
-		let cert = key_server
+
+		key_server
 			.get(fingerprint)
 			.await
 			.to_eyre()
-			.wrap_err("cert unknown in public store")?;
+			.map_err(UserServerError::CertUnknown)?
+	};
 
+	let helper = SignatureHelper::new(cert.clone());
+	let bytes = verify(&content, helper).map_err(UserServerError::InvalidSignature)?;
+
+	let paste_query = rmp_serde::from_slice::<CreateBody>(&bytes)
+		.map_err(UserServerError::MsgPackBodyIsInvalid)?;
+
+	// TODO: return error to user
+	let content = Message::from_bytes(&paste_query.message)
+		.to_eyre()
+		.map_err(UserServerError::InvalidCert)?;
+
+	let now = SystemTime::now();
+	let slug = paste_query.slug.unwrap_or_else(|| petname::petname(4, "-"));
+	// TODO: take into account if the user can overwrite
+	let overwrite = method == Method::PUT;
+	let burn_at = now + paste_query.burn_in.unwrap_or(WEEK);
+
+	if paste_query.burn_in > Some(YEAR) {
+		return Err(UserServerError::InvalidBurnIn.into());
+	}
+
+	let id = if let Some(id) = PublicKey::with_fingerprint(fingerprint)
+		.select(public_keys::id)
+		.first::<i32>(&mut conn)
+		.await
+		.optional()
+		.wrap_err("could not get public key profile")?
+	{
+		// TODO: check rates and premium
+
+		id
+	} else {
 		let new_pub_key = NewPublicKey {
 			fingerprint: fingerprint.as_bytes(),
-			cert: &cert.export_to_vec().to_eyre()?,
+			cert: (&cert).into(),
+			is_premium: false,
 		};
 
-		let id = new_pub_key
+		new_pub_key
 			.insert()
 			.returning(public_keys::id)
 			.get_result(&mut conn)
-			.await?;
-
-		(cert, id)
+			.await
+			.wrap_err("could not insert new public key")?
 	};
 
-	let cert_vec = vec![cert];
-	let helper = Helper::new(&cert_vec);
-	if let Err(e) = verify(&content.inner, helper) {
-		return Err(UserFacingServerError::InvalidSignature(e).into());
-	};
-
-	let now = SystemTime::now();
 	let paste = NewPaste {
 		public_key_id: id,
 		slug: &slug,
-		mime: content.mime.clone().into(),
-		visibility: &content.visibility.into(),
-		content: &content.inner,
-		burn_at: &(now + content.burn_in.unwrap_or(WEEK)),
+		mime: (&paste_query.mime).into(),
+		visibility: &(&paste_query.visibility).into(),
+		content: &content.to_vec().to_wrap_err("msg")?,
+		burn_at: &burn_at,
 		created_at: &now,
-		burn_after_read: content.burn_after_read,
+		burn_after_read: paste_query.burn_after_read,
 	};
 
-	paste
-		.insert()
-		.on_conflict(pastes::id)
-		// TODO: check overwrite
-		// .do_update().set(&paste)
-		.do_nothing()
-		.execute(&mut conn)
-		.await
-		.wrap_err("Could not insert paste")?;
+	// TODO: find a way to box insert queries
+	// TODO: handle conflict errors
+	if overwrite {
+		paste
+			.insert()
+			.on_conflict(pastes::id)
+			.do_update()
+			.set(&paste)
+			.execute(&mut conn)
+			.await
+			.wrap_err("Could not insert paste")?;
+	} else {
+		paste
+			.insert()
+			.on_conflict(pastes::id)
+			.do_nothing()
+			.execute(&mut conn)
+			.await
+			.wrap_err("Could not insert paste")?;
+	}
 
-	tracing::debug!(slug = slug, "Created {:?} paste", content.visibility);
+	tracing::debug!(slug = slug, "Created {:?} paste", paste.visibility);
 
 	Ok((
 		StatusCode::CREATED,
-		MsgPack(CreateResponse {
-			slug,
-			burn_at: now + content.burn_in.unwrap_or(WEEK),
-		}),
+		MsgPack(CreateResponse { slug, burn_at }),
 	))
 }

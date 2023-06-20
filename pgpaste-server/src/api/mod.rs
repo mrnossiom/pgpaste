@@ -38,9 +38,10 @@ mod extract {
 	};
 	use bytes::Buf;
 	use rmp_serde::{to_vec, Deserializer};
+	use sequoia_openpgp::{parse::Parse, Message};
 	use serde::{de::DeserializeOwned, Serialize};
 
-	/// Implementation for `MsgPack` extractor
+	/// Axum extractor for `MsgPack` blobs
 	pub struct MsgPack<T>(pub T);
 
 	#[async_trait]
@@ -136,7 +137,7 @@ mod extract {
 		#[error(transparent)]
 		Decode(#[from] rmp_serde::decode::Error),
 		/// The request is missing a msgpack content type
-		#[error("missing dlhn content type")]
+		#[error("missing application/msgpack content type")]
 		MissingMsgPackContentType,
 	}
 
@@ -146,6 +147,73 @@ mod extract {
 				Self::Bytes(err) => err.into_response(),
 				Self::Decode(err) => (StatusCode::BAD_REQUEST, format!("{err}")).into_response(),
 				Self::MissingMsgPackContentType => {
+					(StatusCode::BAD_REQUEST, format!("{self}")).into_response()
+				}
+			}
+		}
+	}
+
+	// ----------------------------------------------------------------------
+
+	/// Axum extractor for `OpenPGP` messages
+	pub struct PgpMessage(pub Message);
+
+	#[async_trait]
+	impl<S, B> FromRequest<S, B> for PgpMessage
+	where
+		B: HttpBody + Send + 'static,
+		B::Data: Send,
+		B::Error: Into<BoxError>,
+		S: Send + Sync,
+	{
+		type Rejection = PgpMessageRejection;
+
+		async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+			if !has_pgp_signature_content_type(req.headers()) {
+				return Err(PgpMessageRejection::MissingContentType);
+			}
+
+			let mut bytes = Bytes::from_request(req, state).await?.reader();
+			let message = Message::from_reader(&mut bytes)?;
+
+			Ok(Self(message))
+		}
+	}
+
+	/// Whether the request has a msgpack content type
+	fn has_pgp_signature_content_type(headers: &HeaderMap) -> bool {
+		let Some(content_type) = headers.get(header::CONTENT_TYPE) else { return false; };
+		let Ok(content_type) = content_type.to_str() else { return false; };
+		let Ok(mime) = content_type.parse::<mime::Mime>() else { return false; };
+
+		mime.type_() == "application" && mime.subtype() == "pgp-signature"
+	}
+
+	/// Rejection used for [`PgpMessage`].
+	///
+	/// Contains one variant for each way the [`MsgPack`] extractor
+	/// can fail.
+	#[non_exhaustive]
+	#[derive(Debug, thiserror::Error)]
+	pub enum PgpMessageRejection {
+		/// The request body could not be read
+		#[error(transparent)]
+		Bytes(#[from] BytesRejection),
+		/// The request body could not be deserialized
+		#[error("failed to decode the `OpenPGP` message")]
+		Sequoia(#[from] anyhow::Error),
+		/// The request is missing the `application/pgp-signature` content type
+		#[error("missing `application/pgp-signature` content type")]
+		MissingContentType,
+	}
+
+	impl IntoResponse for PgpMessageRejection {
+		fn into_response(self) -> Response {
+			tracing::error!(error = ?self);
+
+			match self {
+				Self::Bytes(err) => err.into_response(),
+				Self::Sequoia(_) | Self::MissingContentType => {
 					(StatusCode::BAD_REQUEST, format!("{self}")).into_response()
 				}
 			}

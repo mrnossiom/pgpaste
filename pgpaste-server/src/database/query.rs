@@ -15,7 +15,7 @@ use diesel::{
 };
 use sequoia_openpgp::Fingerprint;
 
-impl PublicKey {
+impl PublicKey<'_> {
 	/// Select a public key from his `fingerprint`
 	#[inline]
 	pub(crate) fn with_fingerprint(
@@ -38,7 +38,7 @@ impl<'a> NewPublicKey<'a> {
 	}
 }
 
-impl Paste {
+impl Paste<'_> {
 	/// Select a paste from his `slug`
 	#[inline]
 	pub(crate) fn all_valid() -> Filter<pastes::table, Gt<pastes::burn_at, now>> {

@@ -6,12 +6,18 @@ use crate::{
 	crypto::{decrypt, verify, ReceiveHelper},
 };
 use pgpaste_api_types::{api::ReadResponse, Visibility};
-use reqwest::{blocking::Client, header::HeaderValue, StatusCode, Url};
+use reqwest::{
+	blocking::Client,
+	header::{self, HeaderValue},
+	StatusCode, Url,
+};
+use std::borrow::Cow;
 
 #[allow(clippy::needless_pass_by_value)]
 /// Read a paste from the server
 pub(crate) fn read(args: ReadArgs, config: &Config) -> eyre::Result<()> {
 	let paste = get_paste(config.server.clone(), &args.slug, &args)?;
+
 	let helper = ReceiveHelper::new(&config.private_keys, &config.public_keys)?;
 
 	let content = match paste.visibility {
@@ -19,8 +25,13 @@ pub(crate) fn read(args: ReadArgs, config: &Config) -> eyre::Result<()> {
 		Visibility::Protected | Visibility::Private => decrypt(&paste.inner, helper)?,
 	};
 
-	println!("Your paste content:");
-	println!("{content:?}");
+	let content = match paste.mime {
+		text if text == mime::TEXT_PLAIN => String::from_utf8_lossy(&content),
+		_ => Cow::Owned(format!("{:?}", &content)),
+	};
+
+	log::info!("Your paste content:");
+	log::info!("{content}");
 
 	Ok(())
 }
@@ -35,8 +46,8 @@ fn get_paste(mut server: Url, slug: &str, _args: &ReadArgs) -> eyre::Result<Read
 
 	match response.status() {
 		StatusCode::OK => {
-			if let Some(content_type) = response.headers().get("content-type") {
-				if HeaderValue::from_str("application/msgpack")? != content_type {
+			if let Some(content_type) = response.headers().get(header::CONTENT_TYPE) {
+				if HeaderValue::from_str(mime::APPLICATION_MSGPACK.as_ref())? != content_type {
 					eyre::bail!("Invalid content type");
 				}
 			};

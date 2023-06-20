@@ -2,7 +2,6 @@
 
 use super::POLICY;
 use crate::ToEyreError;
-use eyre::WrapErr;
 use sequoia_openpgp::{
 	crypto::{self, Decryptor, SessionKey},
 	packet::{
@@ -76,7 +75,9 @@ impl<'a> ReceiveHelper<'a> {
 					|| format!("{}", private_cert.keyid()),
 					|uid| format!("{} ({})", uid.userid(), private_cert.keyid()),
 				);
-			hints.insert(private_cert.keyid(), identity);
+
+			log::debug!("found identity: {identity}");
+			hints.insert(private_cert.keyid(), identity.clone());
 
 			for ka in private_cert
 				.keys()
@@ -87,9 +88,10 @@ impl<'a> ReceiveHelper<'a> {
 				let secret_key = ka
 					.key()
 					.parts_as_secret()
-					.to_eyre()
-					.wrap_err("Cert does not contain secret keys")?;
+					.to_wrap_err("cert does not contain secret keys")?;
 
+				log::debug!("found secret key: {secret_key}");
+				hints.insert(ka.keyid(), identity.clone());
 				secrets.insert(ka.key().keyid(), secret_key.clone());
 			}
 		}
@@ -200,6 +202,8 @@ impl<'a> DecryptionHelper for ReceiveHelper<'a> {
 						break Box::new(keypair);
 					}
 
+					log::debug!("key {} is encrypted", keyid);
+
 					let key_password = rpassword::prompt_password(format!(
 						"Enter password to decrypt key {}: ",
 						self.hints
@@ -209,7 +213,7 @@ impl<'a> DecryptionHelper for ReceiveHelper<'a> {
 
 					match decrypt_key(key, &key_password.into()) {
 						Ok(decryptor) => break decryptor,
-						Err(error) => eprintln!("Could not unlock key: {error:?}"),
+						Err(error) => log::error!("Could not unlock key: {error:?}"),
 					}
 				};
 
@@ -242,7 +246,7 @@ impl<'a> DecryptionHelper for ReceiveHelper<'a> {
 				}
 			}
 
-			eprintln!("Bad password.");
+			log::error!("Bad password.");
 		}
 	}
 }

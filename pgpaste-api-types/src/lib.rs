@@ -11,6 +11,8 @@
 	rustdoc::broken_intra_doc_links
 )]
 
+// TODO: think about switching to `msgpacker`
+
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
