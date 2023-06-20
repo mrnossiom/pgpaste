@@ -15,6 +15,11 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
 
+      - name: Cache APT Packages
+        uses: awalsh128/cache-apt-pkgs-action@v1.3.0
+        with:
+          packages: clang llvm pkg-config nettle-dev
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
