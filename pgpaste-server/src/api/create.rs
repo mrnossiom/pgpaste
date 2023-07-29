@@ -77,7 +77,6 @@ pub(crate) async fn create_signed_paste(
 	let paste_query = rmp_serde::from_slice::<CreateBody>(&bytes)
 		.map_err(UserServerError::MsgPackBodyIsInvalid)?;
 
-	// TODO: return error to user
 	let content = Message::from_bytes(&paste_query.message)
 		.to_eyre()
 		.map_err(UserServerError::InvalidCert)?;

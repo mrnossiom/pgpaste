@@ -1,0 +1,6 @@
+# Build
+target/
+dist/
+
+.vscode/
+!.vscode/settings.json
