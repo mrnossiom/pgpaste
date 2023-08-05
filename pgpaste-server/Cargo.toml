@@ -13,27 +13,37 @@ publish = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.71"
-axum = { version = "0.6.18", features = ["tracing", "macros"] }
+pgpaste-api-types = { workspace = true }
+pgpaste-app = { workspace = true, features = ["ssr"] }
+
+leptos = { workspace = true, features = ["ssr"] }
+leptos_axum = { workspace = true }
+
+sequoia-openpgp = { workspace = true }
+sequoia-net = { workspace = true }
+
+mime = { workspace = true }
+serde = { workspace = true }
+rmp-serde = { workspace = true }
+
+# TODO: remove when sequoia hits v2
+anyhow = "1.0.72"
+axum = { version = "0.6.20", features = ["tracing", "macros"] }
 bytes = "1.4.0"
 diesel = { version = "2.1.0", features = ["postgres"] }
-diesel-async = { version = "0.3.1", features = ["postgres", "deadpool"] }
+diesel-async = { version = "0.3.2", features = ["postgres", "deadpool"] }
 diesel_migrations = { version = "2.1.0", features = ["postgres"] }
 dotenvy = "0.15.7"
 eyre = "0.6.8"
-mime = "0.3.17"
-petname = { version = "1.1.3", default-features = false, features = [
-	"default_dictionary",
-	"std_rng",
-] }
-pgpaste-api-types = { workspace = true }
-rmp-serde = "1.1.1"
 secrecy = "0.8.0"
-sequoia-net = "0.27.0"
-sequoia-openpgp = "1.16.0"
-serde = "1.0.164"
-thiserror = "1.0.40"
-tokio = { version = "1.28.2", features = ["full"] }
-tower-http = { version = "0.4.0", features = ["tracing", "trace"] }
+thiserror = "1.0.44"
+tokio = { version = "1.29.1", features = ["full"] }
+tower-http = { version = "0.4.3", features = ["tracing", "trace", "fs"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+tower = "0.4.13"
+
+[dependencies.petname]
+version = "1.1.3"
+default-features = false
+features = ["default_dictionary", "std_rng"]

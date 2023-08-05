@@ -1,5 +1,0 @@
-hard_tabs = true
-
-# Nightly rules
-group_imports = "One"
-wrap_comments = false

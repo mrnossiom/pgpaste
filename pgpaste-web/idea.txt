@@ -1,1 +1,0 @@
-- The browser receives the paste URL and adds the key in the URL hash (#)

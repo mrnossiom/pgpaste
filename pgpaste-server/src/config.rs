@@ -1,11 +1,13 @@
 //! State and configuration
 
+use axum::extract::FromRef;
 use diesel_async::{
 	pooled_connection::{deadpool::Pool, AsyncDieselConnectionManager},
 	AsyncPgConnection,
 };
 use dotenvy::dotenv;
 use eyre::Context;
+use leptos::{get_configuration, LeptosOptions};
 use secrecy::{ExposeSecret, Secret};
 use std::{
 	env::{self, VarError},
@@ -15,6 +17,9 @@ use std::{
 /// App global configuration
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
+	/// The underlying leptos configuration options
+	pub(crate) leptos: LeptosOptions,
+
 	/// The `Postgres` connection uri
 	pub(crate) database_url: Secret<String>,
 
@@ -37,9 +42,11 @@ fn required_env_var(name: &str) -> eyre::Result<String> {
 
 impl Config {
 	/// Parse the config from `.env` file
-	pub(crate) fn from_dotenv() -> eyre::Result<Self> {
+	pub(crate) async fn from_dotenv() -> eyre::Result<Self> {
 		// Load the `.env` file ond error if not found
 		dotenv()?;
+
+		let leptos = get_configuration(None).await?;
 
 		let production = env::var("PRODUCTION")
 			.unwrap_or_else(|_| "false".into())
@@ -47,6 +54,7 @@ impl Config {
 			.map_err(|_| eyre::eyre!("PRODUCTION environnement variable must be a `bool`"))?;
 
 		Ok(Self {
+			leptos: leptos.leptos_options,
 			database_url: Secret::new(required_env_var("DATABASE_URL")?),
 			_production: production,
 		})
@@ -79,5 +87,11 @@ impl AppState {
 			.context("failed to create database pool")?;
 
 		Ok(Self { config, database })
+	}
+}
+
+impl FromRef<AppState> for LeptosOptions {
+	fn from_ref(state: &AppState) -> Self {
+		state.config.leptos.clone()
 	}
 }

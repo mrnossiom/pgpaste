@@ -1,0 +1,41 @@
+[package]
+name = "pgpaste-app"
+description = "The pgpaste web interface"
+repository = "https://github.com/MrNossiom/pgpaste"
+readme = "../README.md"
+keywords = ["pgpaste", "leptos", "web"]
+categories = ["web-programming"]
+version = "0.0.0"
+edition = "2021"
+license = "CECIL-B"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pgpaste-api-types = { workspace = true }
+
+leptos = { workspace = true, features = ["nightly"] }
+leptos_axum = { workspace = true, optional = true }
+leptos_meta = { workspace = true, features = ["nightly"] }
+leptos_router = { workspace = true, features = ["nightly"] }
+sequoia-openpgp-wasm = { workspace = true }
+rmp-serde = { workspace = true }
+log = { workspace = true }
+
+gloo-net = "0.3.1"
+stylers = "0.3.1"
+tracing = "0.1.37"
+thiserror = "1.0.44"
+http = "0.2.9"
+
+[dependencies.leptos_icons]
+version = "0.0.15"
+features = ["FiExternalLink", "FiSearch", "SiGithub"]
+
+[features]
+default = []
+hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr", "dep:leptos_axum"]

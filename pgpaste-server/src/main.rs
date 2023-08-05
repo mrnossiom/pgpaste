@@ -20,8 +20,11 @@ use crate::{
 	routes::pastes_router,
 	routines::setup_routines,
 };
-use axum::{Router, Server};
+use axum::{routing::post, Router, Server};
 use eyre::Context;
+use leptos::view;
+use leptos_axum::{generate_route_list, LeptosRoutes};
+use pgpaste_app::App;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
@@ -30,8 +33,11 @@ mod config;
 mod crypto;
 mod database;
 mod error;
+mod file_server;
 mod routes;
 mod routines;
+
+use file_server::file_and_error_handler;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -47,22 +53,26 @@ async fn main() -> eyre::Result<()> {
 		)
 		.init();
 
-	let config = Config::from_dotenv()?;
+	let config = Config::from_dotenv().await?;
 	let state = AppState::new(config)?;
 
 	database::run_migrations(&state.config)?;
 
+	let routes = generate_route_list(|cx| view! { cx, <App /> }).await;
+
 	let app = Router::new()
 		.nest("/api", api_router())
+		.route("/api/*fn_name", post(leptos_axum::handle_server_fns))
 		.nest("/p", pastes_router())
-		// .route("/:*", web())
+		.leptos_routes(&state, routes, |cx| view! { cx, <App /> })
+		.fallback(file_and_error_handler)
 		.layer(TraceLayer::new_for_http())
 		.with_state(state.clone());
 
-	setup_routines(state).await?;
+	setup_routines(state.clone()).await?;
 
-	tracing::debug!("Starting server");
-	Server::bind(&"0.0.0.0:3000".parse()?)
+	tracing::debug!("Starting server at {}", state.config.leptos.site_addr);
+	Server::bind(&state.config.leptos.site_addr)
 		.serve(app.into_make_service())
 		.await?;
 

@@ -4,9 +4,9 @@ use leptos::{
 };
 use leptos_icons::{FiIcon, Icon, SiIcon};
 use leptos_router::{use_navigate, NavigateOptions, A};
-use stylers::style;
+use stylers::style_str;
 
-const CLASS: &str = style! {"Nav",
+const CLASS: (&str, &str) = style_str! {"Nav",
 	nav {}
 };
 
@@ -24,7 +24,12 @@ pub(crate) fn Nav(cx: Scope) -> impl IntoView {
 		}
 	};
 
-	view! { cx, class = CLASS,
+	// it seems to be a bug in the view! macro
+	#[allow(unused_imports)]
+	use leptos::IntoClass;
+
+	view! { cx, class = {CLASS.0},
+		<style>{CLASS.1}</style>
 		<nav class="navbar" role="navigation" aria-label="main navigation">
 			<div class="navbar-brand">
 				<A class="navbar-item pgpaste-logo" href="/">

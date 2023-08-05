@@ -1,0 +1,25 @@
+[package]
+name = "pgpaste-front"
+description = "The actual pgpaste server"
+repository = "https://github.com/MrNossiom/pgpaste"
+readme = "../README.md"
+keywords = ["pgpaste", "paste", "server"]
+categories = ["web-programming::http-server"]
+version = "0.0.0"
+edition = "2021"
+license = "CECILL-B"
+publish = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pgpaste-app = { workspace = true, features = ["hydrate"] }
+leptos = { workspace = true, features = ["hydrate"] }
+log = { workspace = true }
+
+console_error_panic_hook = "0.1.7"
+console_log = "1.0.0"
+wasm-bindgen = "0.2.87"

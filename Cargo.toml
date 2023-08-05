@@ -1,5 +1,70 @@
 [workspace]
 members = ["pgpaste-*"]
+resolver = "2"
 
 [workspace.dependencies]
 pgpaste-api-types = { path = "./pgpaste-api-types" }
+pgpaste-app = { path = "./pgpaste-app" }
+
+# Binaries
+pgpaste-cli = { path = "./pgpaste-cli" }
+pgpaste-front = { path = "./pgpaste-front" }
+pgpaste-server = { path = "./pgpaste-server" }
+
+leptos = "0.4.8"
+leptos_axum = "0.4.8"
+leptos_meta = "0.4.8"
+leptos_router = "0.4.8"
+
+sequoia-net = "0.27.0"
+sequoia-openpgp = { version = "1.16.0" }
+
+mime = "0.3.17"
+serde = { version = "1.0.181", features = ["derive"] }
+rmp-serde = "1.1.2"
+log = "0.4.19"
+
+# This is specified as such to avoid a confict with the crypto backend selection via fueatures.
+[workspace.dependencies.sequoia-openpgp-wasm]
+package = "sequoia-openpgp"
+# TODO: find a way to use the registry without colliding with the normal `sequoia-openpgp` dep.
+git = "https://gitlab.com/sequoia-pgp/sequoia.git"
+branch = "main"
+version = "1.16.0"
+default-features = false
+features = [
+	"allow-experimental-crypto",
+	"allow-variable-time-crypto",
+	"crypto-rust",
+]
+
+[patch.crates-io]
+stylers = { git = "https://github.com/abishekatp/stylers.git", branch = "main" }
+
+# Defines a size-optimized profile for the WASM bundle in release mode
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
+
+
+[[workspace.metadata.leptos]]
+name = "pgpaste-web"
+bin-package = "pgpaste-server"
+lib-package = "pgpaste-front"
+
+site-root = "target/site"
+assets-dir = "pgpaste-app/public"
+
+site-addr = "127.0.0.1:3000"
+reload-port = 3001
+
+# end2end-cmd = "npx playwright test"
+# end2end-dir = "end2end"
+
+browserquery = "defaults"
+env = "DEV"
+
+lib-profile-release = "wasm-release"

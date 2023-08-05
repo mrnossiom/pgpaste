@@ -6,8 +6,8 @@ run-cli *ARGS:
 	cargo run --bin pgpaste -- --config pgpaste-cli/config.toml {{ARGS}}
 
 # Run the server
-run-server:
-	cargo run --bin pgpaste-server
+watch-server:
+	cargo leptos watch
 
 # Starts the docker compose file with the provided scope
 up SCOPE:

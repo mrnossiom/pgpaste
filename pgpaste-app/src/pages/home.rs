@@ -1,8 +1,8 @@
 use leptos::{component, view, IntoView, Scope};
 use leptos_router::A;
-use stylers::style;
+use stylers::style_str;
 
-const CLASS: &str = style! {"Home",
+const CLASS: (&str, &str) = style_str! {"Home",
 	.hero {
 		background: rgb(209,253,255);
 		background: linear-gradient(140deg, rgba(209,253,255,1) 0%, rgba(253,219,146,1) 100%);
@@ -11,7 +11,8 @@ const CLASS: &str = style! {"Home",
 
 #[component]
 pub(crate) fn Home(cx: Scope) -> impl IntoView {
-	view! { cx, class = CLASS,
+	view! { cx, class = {CLASS.0},
+		<style>{CLASS.1}</style>
 		<section class="hero is-medium">
 			<div class="hero-head"></div>
 			<div class="hero-body">

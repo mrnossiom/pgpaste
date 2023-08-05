@@ -2,7 +2,7 @@ use gloo_net::http::Request;
 use leptos::{component, create_resource, view, IntoView, Scope, SignalWith, Suspense};
 use leptos_router::use_params_map;
 use pgpaste_api_types::Paste;
-use sequoia_openpgp::{parse::Parse, Message};
+use sequoia_openpgp_wasm::{parse::Parse, Message};
 
 async fn contact_data(id: String) -> Option<Paste> {
 	let path = format!("https://localhost:3000/api/paste/{}", id);

@@ -145,7 +145,7 @@ impl<'a> VerificationHelper for ReceiveHelper<'a> {
 
 	// TODO: implement message structure verification policy
 	fn check(&mut self, structure: MessageStructure) -> sequoia_openpgp::Result<()> {
-		for layer in structure.iter() {
+		for layer in &*structure {
 			match layer {
 				MessageLayer::Compression { .. } | MessageLayer::Encryption { .. } => {}
 				MessageLayer::SignatureGroup { results } => {

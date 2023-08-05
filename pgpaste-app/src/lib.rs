@@ -1,7 +1,9 @@
 use leptos::{component, view, IntoView, Scope};
+use leptos_meta::{provide_meta_context, Stylesheet};
 use leptos_router::{Route, Router, Routes};
 
 mod components;
+pub mod error;
 mod pages;
 
 use crate::{
@@ -11,7 +13,12 @@ use crate::{
 
 #[component]
 pub fn App(cx: Scope) -> impl IntoView {
+	provide_meta_context(cx);
+
 	view! { cx,
+		<Stylesheet href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" />
+		<Stylesheet href="/static/reset.css" />
+
 		<Router fallback=move |cx| view! { cx, <NotFound /> }>
 			<Nav />
 
