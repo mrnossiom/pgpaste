@@ -35,7 +35,14 @@ http = "0.2.9"
 version = "0.0.15"
 features = ["FiExternalLink", "FiSearch", "SiGithub"]
 
+[dev-dependencies]
+gloo = { version = "0.9.0", features = ["gloo-timers", "futures"] }
+wasm-bindgen = "0.2.87"
+wasm-bindgen-test = "0.3.0"
+web-sys = "0.3.64"
+
 [features]
 default = []
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr", "dep:leptos_axum"]
+__test = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]

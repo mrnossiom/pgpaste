@@ -71,7 +71,10 @@ async fn main() -> eyre::Result<()> {
 
 	setup_routines(state.clone()).await?;
 
-	tracing::debug!("Starting server at {}", state.config.leptos.site_addr);
+	tracing::debug!(
+		"Starting server at http://{}",
+		state.config.leptos.site_addr
+	);
 	Server::bind(&state.config.leptos.site_addr)
 		.serve(app.into_make_service())
 		.await?;
