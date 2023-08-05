@@ -71,9 +71,15 @@ mod extract {
 
 	/// Whether the request has a msgpack content type
 	fn has_msgpack_content_type(headers: &HeaderMap) -> bool {
-		let Some(content_type) = headers.get(header::CONTENT_TYPE) else { return false; };
-		let Ok(content_type) = content_type.to_str() else { return false; };
-		let Ok(mime) = content_type.parse::<mime::Mime>() else { return false; };
+		let Some(content_type) = headers.get(header::CONTENT_TYPE) else {
+			return false;
+		};
+		let Ok(content_type) = content_type.to_str() else {
+			return false;
+		};
+		let Ok(mime) = content_type.parse::<mime::Mime>() else {
+			return false;
+		};
 
 		mime.type_() == "application"
 			&& (mime.subtype() == "msgpack"
@@ -182,9 +188,15 @@ mod extract {
 
 	/// Whether the request has a msgpack content type
 	fn has_pgp_signature_content_type(headers: &HeaderMap) -> bool {
-		let Some(content_type) = headers.get(header::CONTENT_TYPE) else { return false; };
-		let Ok(content_type) = content_type.to_str() else { return false; };
-		let Ok(mime) = content_type.parse::<mime::Mime>() else { return false; };
+		let Some(content_type) = headers.get(header::CONTENT_TYPE) else {
+			return false;
+		};
+		let Ok(content_type) = content_type.to_str() else {
+			return false;
+		};
+		let Ok(mime) = content_type.parse::<mime::Mime>() else {
+			return false;
+		};
 
 		mime.type_() == "application" && mime.subtype() == "pgp-signature"
 	}

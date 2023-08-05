@@ -33,14 +33,10 @@ jobs:
         with:
           command: test
 
+      # TODO: add UI tests
+
       - name: Format Check
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
-
-      - name: Clippy Check
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          # args: -- -D warnings

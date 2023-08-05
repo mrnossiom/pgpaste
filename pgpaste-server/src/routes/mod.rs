@@ -36,8 +36,8 @@ pub(crate) async fn get_public_paste<'a>(
 		.first::<Paste>(&mut conn)
 		.await
 		.optional()
-		.wrap_err("Failed to load paste")? else
-	{
+		.wrap_err("Failed to load paste")?
+	else {
 		return Err(UserServerError::PasteNotFound.into());
 	};
 
