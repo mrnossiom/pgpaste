@@ -25,7 +25,7 @@ use eyre::Context;
 use leptos::view;
 use leptos_axum::{generate_route_list, LeptosRoutes};
 use pgpaste_app::App;
-use tower_http::trace::TraceLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 mod api;
@@ -67,6 +67,7 @@ async fn main() -> eyre::Result<()> {
 		.leptos_routes(&state, routes, |cx| view! { cx, <App /> })
 		.fallback(file_and_error_handler)
 		.layer(TraceLayer::new_for_http())
+		.layer(CorsLayer::permissive())
 		.with_state(state.clone());
 
 	setup_routines(state.clone()).await?;

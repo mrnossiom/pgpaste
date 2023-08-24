@@ -18,18 +18,26 @@ crate-type = ["cdylib", "rlib"]
 pgpaste-api-types = { workspace = true }
 
 leptos = { workspace = true, features = ["nightly"] }
-leptos_axum = { workspace = true, optional = true }
 leptos_meta = { workspace = true, features = ["nightly"] }
 leptos_router = { workspace = true, features = ["nightly"] }
 sequoia-openpgp-wasm = { workspace = true }
 rmp-serde = { workspace = true }
 log = { workspace = true }
+eyre = { workspace = true }
 
-gloo-net = "0.3.1"
 stylers = "0.3.1"
 tracing = "0.1.37"
 thiserror = "1.0.44"
 http = "0.2.9"
+
+# Client-side only deps
+gloo-net = { version = "0.3.1", optional = true }
+web-sys = { version = "0.3.64", optional = true, features = [
+	"AbortController",
+] }
+# Server-side only deps
+reqwest = { version = "0.11.18", optional = true }
+leptos_axum = { workspace = true, optional = true }
 
 [dependencies.leptos_icons]
 version = "0.0.15"
@@ -43,6 +51,17 @@ web-sys = "0.3.64"
 
 [features]
 default = []
-hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
-ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr", "dep:leptos_axum"]
-__test = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
+hydrate = [
+	"leptos/hydrate",
+	"leptos_meta/hydrate",
+	"leptos_router/hydrate",
+	"_client-deps",
+]
+csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr", "_client-deps"]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr", "_server-deps"]
+
+# Server or client side only deps
+_client-deps = ["dep:gloo-net", "dep:web-sys"]
+_server-deps = ["dep:leptos_axum", "dep:reqwest"]
+
+__test = ["csr"]

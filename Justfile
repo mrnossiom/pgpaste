@@ -7,7 +7,13 @@ cli *ARGS:
 
 # Run the server
 server:
-	cargo leptos watch
+	RUST_BACKTRACE=1 cargo leptos watch
+
+# HACK: When developping you want to check non-ssr modes too. In a Rust
+# workspace you need to disable the "ssr" feature in the `pgpaste-server`
+flip-ssr-feature:
+	# TODO
+	sed "s/'ssr'//" path/to/file
 
 test: test-wasm
 	cargo test

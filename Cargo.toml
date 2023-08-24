@@ -23,6 +23,8 @@ mime = "0.3.17"
 serde = { version = "1.0.181", features = ["derive"] }
 rmp-serde = "1.1.2"
 log = "0.4.19"
+eyre = "0.6.8"
+
 
 # This is specified as such to avoid a confict with the crypto backend selection via fueatures.
 [workspace.dependencies.sequoia-openpgp-wasm]

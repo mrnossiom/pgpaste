@@ -1,3 +1,18 @@
+//! # The pgpaste web interface
+
+#![warn(
+	missing_docs,
+	// clippy::missing_docs_in_private_items,
+	clippy::print_literal,
+	clippy::unwrap_used,
+	clippy::nursery,
+	clippy::pedantic,
+	clippy::cargo,
+	rustdoc::broken_intra_doc_links
+)]
+#![allow(clippy::redundant_pub_crate, clippy::module_name_repetitions)]
+#![cfg_attr(not(feature = "ssr"), allow(clippy::future_not_send))]
+
 use leptos::{component, view, IntoView, Scope};
 use leptos_meta::{provide_meta_context, Stylesheet};
 use leptos_router::{Route, Router, Routes};
@@ -5,6 +20,7 @@ use leptos_router::{Route, Router, Routes};
 mod components;
 pub mod error;
 mod pages;
+mod utils;
 
 use crate::{
 	components::{Footer, Nav},
@@ -24,26 +40,11 @@ pub fn App(cx: Scope) -> impl IntoView {
 
 			<main>
 			<Routes>
-				<Route
-					path=""
-					view=move |cx| view! { cx, <Home /> }
-				/>
-				<Route
-					path="about"
-					view=move |cx| view! { cx, <About /> }
-				/>
-				<Route
-					path="paste/:slug"
-					view=move |cx| view! { cx, <Paste /> }
-				/>
-				<Route
-					path="playground"
-					view=move |cx| view! { cx, <Playground /> }
-				/>
-				<Route
-					path="settings"
-					view=move |cx| view! { cx, <Settings /> }
-				/>
+				<Route path="" view=Home />
+				<Route path="about" view=About />
+				<Route path="paste/:slug" view=Paste />
+				<Route path="playground" view=Playground />
+				<Route path="settings" view=Settings />
 			</Routes>
 			</main>
 		</Router>

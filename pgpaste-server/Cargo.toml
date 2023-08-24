@@ -25,6 +25,7 @@ sequoia-net = { workspace = true }
 mime = { workspace = true }
 serde = { workspace = true }
 rmp-serde = { workspace = true }
+eyre = { workspace = true }
 
 # TODO: remove when sequoia hits v2
 anyhow = "1.0.72"
@@ -34,11 +35,10 @@ diesel = { version = "2.1.0", features = ["postgres"] }
 diesel-async = { version = "0.3.2", features = ["postgres", "deadpool"] }
 diesel_migrations = { version = "2.1.0", features = ["postgres"] }
 dotenvy = "0.15.7"
-eyre = "0.6.8"
 secrecy = "0.8.0"
 thiserror = "1.0.44"
 tokio = { version = "1.29.1", features = ["full"] }
-tower-http = { version = "0.4.3", features = ["tracing", "trace", "fs"] }
+tower-http = { version = "0.4.3", features = ["full"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 tower = "0.4.13"

@@ -7,7 +7,7 @@ use axum::{
 	response::{IntoResponse, Response},
 };
 use leptos::{view, Errors};
-use pgpaste_app::error::{AppError, ErrorTemplate};
+use pgpaste_app::error::{App, ErrorTemplate};
 use tower::ServiceExt;
 use tower_http::services::ServeDir;
 
@@ -26,7 +26,7 @@ pub(crate) async fn file_and_error_handler(
 		response.into_response()
 	} else {
 		let mut errors = Errors::default();
-		errors.insert_with_default_key(AppError::NotFound);
+		errors.insert_with_default_key(App::NotFound);
 		let handler = leptos_axum::render_app_to_stream(
 			options.config.leptos.clone(),
 			move |cx| view! {cx, <ErrorTemplate outside_errors=errors.clone()/>},

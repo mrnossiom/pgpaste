@@ -1,24 +1,25 @@
 use http::status::StatusCode;
-use leptos::*;
+use leptos::{component, create_rw_signal, view, Errors, For, IntoView, RwSignal, Scope};
 use thiserror::Error;
 
-#[cfg(feature = "ssr")]
-use leptos_axum::ResponseOptions;
-
 #[derive(Clone, Debug, Error)]
-pub enum AppError {
+pub enum App {
+	/// The page asked doesn't exist or was moved
 	#[error("Not Found")]
 	NotFound,
 }
 
-impl AppError {
-	pub fn status_code(&self) -> StatusCode {
+impl App {
+	/// Retrieves the status code associated to the error
+	#[must_use]
+	pub const fn status_code(&self) -> StatusCode {
 		match self {
-			AppError::NotFound => StatusCode::NOT_FOUND,
+			Self::NotFound => StatusCode::NOT_FOUND,
 		}
 	}
 }
 
+/// Displays errors to the user
 #[component]
 #[track_caller]
 pub fn ErrorTemplate(
@@ -31,17 +32,21 @@ pub fn ErrorTemplate(
 		.xor(errors)
 		.expect("either `outside_errors` or `errors` MUST be provided")();
 
-	let errors: Vec<AppError> = errors
+	let errors: Vec<App> = errors
 		.into_iter()
-		.filter_map(|(_k, v)| v.downcast_ref::<AppError>().cloned())
+		.filter_map(|(_k, v)| v.downcast_ref::<App>().cloned())
 		.collect();
 
 	log::debug!("Errors: {errors:#?}");
 
 	// (Server-side) We set the response code to the first error's status code
 	#[cfg(feature = "ssr")]
-	if let Some(response) = use_context::<ResponseOptions>(cx) {
-		response.set_status(errors[0].status_code());
+	{
+		use {leptos::use_context, leptos_axum::ResponseOptions};
+
+		if let Some(response) = use_context::<ResponseOptions>(cx) {
+			response.set_status(errors[0].status_code());
+		}
 	}
 
 	view! { cx,

@@ -1,16 +1,38 @@
-use gloo_net::http::Request;
-use leptos::{component, create_resource, view, IntoView, Scope, SignalWith, Suspense};
+use leptos::{
+	component, create_local_resource, create_resource, view, IntoView, Scope, SignalWith, Suspense,
+};
 use leptos_router::use_params_map;
 use pgpaste_api_types::Paste;
 use sequoia_openpgp_wasm::{parse::Parse, Message};
 
-async fn contact_data(id: String) -> Option<Paste> {
-	let path = format!("https://localhost:3000/api/paste/{}", id);
-	let res = Request::get(&path).send().await.unwrap();
+#[cfg(feature = "ssr")]
+async fn contact_data_(id: &str) -> eyre::Result<Vec<u8>> {
+	let path = format!("http://localhost:3000/api/paste/{}", id);
+	let res = reqwest::get(path).await?;
 
-	let body = res.binary().await.unwrap();
+	if res.status() == 200 {
+		Ok(res.bytes().await?.to_vec())
+	} else {
+		let error = res.text().await?;
+		eyre::bail!("Error while fetching: {error}")
+	}
+}
 
-	rmp_serde::from_slice(&body).ok()
+#[cfg(not(feature = "ssr"))]
+// #[cfg(any(feature = "hydrate", feature = "csr"))]
+async fn contact_data_(id: &str) -> eyre::Result<Vec<u8>> {
+	use gloo_net::http::Request;
+
+	let path = format!("http://localhost:3000/api/paste/{}", id);
+	let res = Request::get(&path).send().await?;
+
+	Ok(res.binary().await?)
+}
+
+async fn contact_data(id: String) -> eyre::Result<Paste> {
+	let body = contact_data_(&id).await?;
+
+	Ok(rmp_serde::from_slice(&body)?)
 }
 
 #[component]
@@ -29,7 +51,7 @@ fn Display(cx: Scope, paste: Paste) -> impl IntoView {
 #[component]
 pub(crate) fn Paste(cx: Scope) -> impl IntoView {
 	let params = use_params_map(cx);
-	let data = create_resource(
+	let data = create_local_resource(
 		cx,
 		move || params.with(|p| p.get("slug").cloned().unwrap_or_default()),
 		contact_data,
@@ -37,13 +59,21 @@ pub(crate) fn Paste(cx: Scope) -> impl IntoView {
 
 	view! { cx,
 		<div class="section is-large">
-		<Suspense fallback=move || view! { cx, <p>"Loading (Suspense Fallback)..."</p> }>
+		<Suspense fallback=move || view! { cx, <p>"Loading paste..."<Spinner /></p> }>
 			{move || {
-				data.read(cx).map(|paste| match paste {
-				None => view! { cx, <pre>"Error"</pre> }.into_view(cx),
-				Some(paste) => view! { cx, <Display paste /> }.into_view(cx),
-			})}}
+				data.read(cx).map(|paste| paste.map_or_else(
+					|| view! { cx, <pre>"Error"</pre> }.into_view(cx),
+					|paste| view! { cx, <Display paste /> }.into_view(cx))
+				)
+			}}
 		</Suspense>
 		</div>
+	}
+}
+
+#[component]
+fn Spinner(cx: Scope) -> impl IntoView {
+	view! { cx,
+		<span>"Look I'm spinning"</span>
 	}
 }
