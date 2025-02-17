@@ -1,16 +1,15 @@
 [package]
 name = "pgpaste-api-types"
 description = "Types for the pgpaste API"
-repository = "https://github.com/MrNossiom/pgpaste"
+version = "0.0.0"
+edition = "2024"
+
+repository = "https://github.com/mrnossiom/pgpaste"
 readme = "../README.md"
 keywords = ["pgpaste", "api-types"]
 categories = ["web-programming"]
-version = "0.0.0"
-edition = "2021"
 license = "CECIL-B"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-mime = "0.3.17"
-serde = { version = "1.0.164", features = ["derive"] }
+mime = "0.3"
+serde = { version = "1", features = ["derive"] }

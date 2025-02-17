@@ -1,27 +1,23 @@
 //! State and configuration
 
-use diesel_async::{
-	pooled_connection::{deadpool::Pool, AsyncDieselConnectionManager},
-	AsyncPgConnection,
-};
-use dotenvy::dotenv;
-use eyre::Context;
-use secrecy::{ExposeSecret, Secret};
 use std::{
 	env::{self, VarError},
 	fmt,
 };
 
+use diesel_async::{
+	AsyncPgConnection,
+	pooled_connection::{AsyncDieselConnectionManager, deadpool::Pool},
+};
+use dotenvy::dotenv;
+use eyre::Context;
+use secrecy::{ExposeSecret, SecretString};
+
 /// App global configuration
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
 	/// The `Postgres` connection uri
-	pub(crate) database_url: Secret<String>,
-
-	/// Whether or not to use production defaults
-	///
-	/// Currently affects nothing
-	pub(crate) _production: bool,
+	pub(crate) database_url: SecretString,
 }
 
 /// Resolve an environment variable or return an appropriate error
@@ -41,14 +37,8 @@ impl Config {
 		// Load the `.env` file ond error if not found
 		dotenv()?;
 
-		let production = env::var("PRODUCTION")
-			.unwrap_or_else(|_| "false".into())
-			.parse::<bool>()
-			.map_err(|_| eyre::eyre!("PRODUCTION environnement variable must be a `bool`"))?;
-
 		Ok(Self {
-			database_url: Secret::new(required_env_var("DATABASE_URL")?),
-			_production: production,
+			database_url: SecretString::from(required_env_var("DATABASE_URL")?),
 		})
 	}
 }

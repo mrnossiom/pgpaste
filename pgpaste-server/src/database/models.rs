@@ -3,15 +3,18 @@
 //! `Diesel` models that represent database objects
 // TODO: build a macro to reduce boilerplate and generate ids struct for each table with a `AsExpression` implementation
 
-use super::schema::{self, pastes, public_keys};
+use std::{borrow::Cow, io::Write, time::SystemTime};
+
 use diesel::{
+	AsChangeset, AsExpression, FromSqlRow, Identifiable, Insertable, Queryable, Selectable,
 	deserialize::{self, FromSql},
 	pg::{Pg, PgValue},
 	serialize::{self, IsNull, Output, ToSql},
-	AsChangeset, AsExpression, FromSqlRow, Identifiable, Insertable, Queryable, Selectable,
+	sql_types::Text,
 };
 use sequoia_openpgp::{parse::Parse, serialize::MarshalInto};
-use std::{borrow::Cow, io::Write, time::SystemTime};
+
+use super::schema::{self, pastes, public_keys};
 
 #[derive(Debug, PartialEq, Eq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = schema::sql_types::Visibility)]
@@ -64,15 +67,15 @@ impl From<&Visibility> for pgpaste_api_types::Visibility {
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct Mime<'a>(pub Cow<'a, mime::Mime>);
 
-impl<'a> ToSql<diesel::sql_types::Text, Pg> for Mime<'a> {
+impl ToSql<diesel::sql_types::Text, Pg> for Mime<'_> {
 	fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
 		out.write_all(self.0.to_string().as_bytes())?;
 		Ok(IsNull::No)
 	}
 }
-impl<'a> FromSql<diesel::sql_types::Text, Pg> for Mime<'a> {
+impl FromSql<diesel::sql_types::Text, Pg> for Mime<'_> {
 	fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-		let mime = String::from_sql(bytes)?;
+		let mime = <String as FromSql<Text, Pg>>::from_sql(bytes)?;
 		Ok(Self(Cow::Owned(
 			mime.parse().map_err(|_| "Invalid mime type")?,
 		)))
@@ -83,7 +86,7 @@ impl<'a> From<&'a mime::Mime> for Mime<'a> {
 		Self(Cow::Borrowed(mime))
 	}
 }
-impl<'a> From<Mime<'a>> for mime::Mime {
+impl From<Mime<'_>> for mime::Mime {
 	fn from(mime: Mime) -> Self {
 		mime.0.into_owned()
 	}
@@ -93,14 +96,14 @@ impl<'a> From<Mime<'a>> for mime::Mime {
 #[diesel(sql_type = diesel::sql_types::Bytea)]
 pub struct Certificate<'a>(pub Cow<'a, sequoia_openpgp::Cert>);
 
-impl<'a> std::cmp::Eq for Certificate<'a> {}
-impl<'a> ToSql<diesel::sql_types::Bytea, Pg> for Certificate<'a> {
+impl std::cmp::Eq for Certificate<'_> {}
+impl ToSql<diesel::sql_types::Bytea, Pg> for Certificate<'_> {
 	fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
 		out.write_all(&self.0.to_vec()?)?;
 		Ok(IsNull::No)
 	}
 }
-impl<'a> FromSql<diesel::sql_types::Bytea, Pg> for Certificate<'a> {
+impl FromSql<diesel::sql_types::Bytea, Pg> for Certificate<'_> {
 	fn from_sql(
 		bytes: <Pg as diesel::backend::Backend>::RawValue<'_>,
 	) -> deserialize::Result<Self> {
@@ -113,7 +116,7 @@ impl<'a> From<&'a sequoia_openpgp::Cert> for Certificate<'a> {
 		Self(Cow::Borrowed(cert))
 	}
 }
-impl<'a> From<Certificate<'a>> for sequoia_openpgp::Cert {
+impl From<Certificate<'_>> for sequoia_openpgp::Cert {
 	fn from(cert: Certificate) -> Self {
 		cert.0.into_owned()
 	}

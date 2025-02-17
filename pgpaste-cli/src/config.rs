@@ -1,12 +1,14 @@
 //! CLI parsed configuration
 
-use crate::{args::PGPasteArgs, ToEyreError};
+use std::{fs::read_to_string, path::PathBuf};
+
 use dirs::config_local_dir;
 use eyre::Context;
 use reqwest::Url;
-use sequoia_openpgp::{parse::Parse, Cert, KeyHandle};
+use sequoia_openpgp::{Cert, KeyHandle, parse::Parse};
 use serde::{Deserialize, Serialize};
-use std::{fs::read_to_string, path::PathBuf};
+
+use crate::{ToEyreError, args::PGPasteArgs};
 
 /// Config scheme as represented on disk
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,16 +1,7 @@
 //! Routes handlers for creating pastes
 
-use crate::{
-	api::extract::MsgPack,
-	crypto::{verify, SignatureHelper},
-	database::{
-		models::{Certificate, NewPaste, NewPublicKey, PublicKey},
-		prelude::*,
-		schema::{pastes, public_keys},
-	},
-	error::{ServerError, UserServerError},
-	AppState, ToEyreError,
-};
+use std::time::{Duration, SystemTime};
+
 use axum::{
 	body::Bytes,
 	extract::State,
@@ -20,8 +11,19 @@ use axum::{
 use eyre::Context;
 use pgpaste_api_types::api::{CreateBody, CreateResponse};
 use sequoia_net::{KeyServer, Policy};
-use sequoia_openpgp::{packet::Signature, parse::Parse, serialize::MarshalInto, Message, Packet};
-use std::time::{Duration, SystemTime};
+use sequoia_openpgp::{Message, Packet, packet::Signature, parse::Parse, serialize::MarshalInto};
+
+use crate::{
+	AppState, ToEyreError,
+	api::extract::MsgPack,
+	crypto::{SignatureHelper, verify},
+	database::{
+		models::{Certificate, NewPaste, NewPublicKey, PublicKey},
+		prelude::*,
+		schema::{pastes, public_keys},
+	},
+	error::{ServerError, UserServerError},
+};
 
 /// A year
 const YEAR: Duration = Duration::from_secs(60 * 60 * 24 * 365);
@@ -83,7 +85,9 @@ pub(crate) async fn create_signed_paste(
 		.map_err(UserServerError::InvalidCert)?;
 
 	let now = SystemTime::now();
-	let slug = paste_query.slug.unwrap_or_else(|| petname::petname(4, "-"));
+	let slug = paste_query
+		.slug
+		.unwrap_or_else(|| petname::petname(4, "-").unwrap());
 	// TODO: take into account if the user can overwrite
 	let overwrite = method == Method::PUT;
 	let burn_at = now + paste_query.burn_in.unwrap_or(WEEK);

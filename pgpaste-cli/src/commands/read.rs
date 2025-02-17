@@ -1,17 +1,19 @@
 //! Implementation of the `read` subcommand
 
+use std::borrow::Cow;
+
+use pgpaste_api_types::{Visibility, api::ReadResponse};
+use reqwest::{
+	StatusCode, Url,
+	blocking::Client,
+	header::{self, HeaderValue},
+};
+
 use crate::{
 	args::ReadArgs,
 	config::Config,
-	crypto::{decrypt, verify, ReceiveHelper},
+	crypto::{ReceiveHelper, decrypt, verify},
 };
-use pgpaste_api_types::{api::ReadResponse, Visibility};
-use reqwest::{
-	blocking::Client,
-	header::{self, HeaderValue},
-	StatusCode, Url,
-};
-use std::borrow::Cow;
 
 #[allow(clippy::needless_pass_by_value)]
 /// Read a paste from the server

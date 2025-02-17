@@ -1,14 +1,15 @@
 //! Models and triggers related to database management
 
-use crate::Config;
 use diesel::{Connection, PgConnection};
 use diesel_async::{
-	pooled_connection::deadpool::{Object, Pool},
 	AsyncPgConnection,
+	pooled_connection::deadpool::{Object, Pool},
 };
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use eyre::eyre;
 use secrecy::ExposeSecret;
+
+use crate::Config;
 
 pub(crate) mod models;
 pub(crate) mod query;

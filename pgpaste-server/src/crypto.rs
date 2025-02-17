@@ -1,15 +1,17 @@
 //! Certs verification module
 
-use crate::ToEyreError;
+use std::io;
+
 use sequoia_openpgp::{
+	Cert, KeyHandle,
 	parse::{
-		stream::{MessageLayer, MessageStructure, VerificationHelper, VerifierBuilder},
 		Parse,
+		stream::{MessageLayer, MessageStructure, VerificationHelper, VerifierBuilder},
 	},
 	policy::StandardPolicy,
-	Cert, KeyHandle,
 };
-use std::io;
+
+use crate::ToEyreError;
 
 /// Default policy used for certificate verification
 const POLICY: &StandardPolicy = &StandardPolicy::new();

@@ -1,23 +1,24 @@
 //! Paths normal users could interact with in contrast to API paths
 
+use axum::{
+	Router,
+	extract::{Path, State},
+	http::StatusCode,
+	response::IntoResponse,
+	routing::get,
+};
+use eyre::{ContextCompat, WrapErr};
+use sequoia_openpgp::{Message, parse::Parse};
+
 use crate::{
+	ToEyreError,
 	config::AppState,
 	database::{
 		models::{Paste, Visibility},
 		prelude::*,
 	},
 	error::{ServerError, UserServerError},
-	ToEyreError,
 };
-use axum::{
-	extract::{Path, State},
-	http::StatusCode,
-	response::IntoResponse,
-	routing::get,
-	Router,
-};
-use eyre::{ContextCompat, WrapErr};
-use sequoia_openpgp::{parse::Parse, Message};
 
 /// The API routes definition
 pub(crate) fn pastes_router() -> Router<AppState> {
@@ -36,8 +37,8 @@ pub(crate) async fn get_public_paste<'a>(
 		.first::<Paste>(&mut conn)
 		.await
 		.optional()
-		.wrap_err("Failed to load paste")? else
-	{
+		.wrap_err("Failed to load paste")?
+	else {
 		return Err(UserServerError::PasteNotFound.into());
 	};
 

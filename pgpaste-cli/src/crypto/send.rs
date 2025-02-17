@@ -1,17 +1,19 @@
 //! Create and encrypt pastes.
 
-use super::POLICY;
-use crate::ToEyreError;
+use std::{borrow::Cow, collections::HashMap, io::Write};
+
 use async_compat::Compat;
 use eyre::ContextCompat;
 use rpassword::prompt_password;
 use sequoia_net::{KeyServer, Policy};
 use sequoia_openpgp::{
-	crypto::KeyPair,
-	serialize::stream::{Encryptor, LiteralWriter, Message, Signer},
 	Cert, KeyHandle, KeyID,
+	crypto::KeyPair,
+	serialize::stream::{Encryptor2, LiteralWriter, Message, Signer},
 };
-use std::{borrow::Cow, collections::HashMap, io::Write};
+
+use super::POLICY;
+use crate::ToEyreError;
 
 /// Signs the given message.
 pub(crate) fn sign(content: &[u8], helper: &SendHelper) -> eyre::Result<Vec<u8>> {
@@ -48,7 +50,7 @@ pub(crate) fn protect(
 		message
 	};
 
-	let encryptor = Encryptor::with_passwords(next, [password])
+	let encryptor = Encryptor2::with_passwords(next, [password])
 		.build()
 		.to_eyre()?;
 	let mut literal = LiteralWriter::new(encryptor).build().to_eyre()?;
@@ -85,7 +87,7 @@ pub(crate) fn encrypt(
 		message
 	};
 
-	let encryptor = Encryptor::for_recipients(next, recipients)
+	let encryptor = Encryptor2::for_recipients(next, recipients)
 		.build()
 		.to_eyre()?;
 	let mut literal = LiteralWriter::new(encryptor).build().to_eyre()?;

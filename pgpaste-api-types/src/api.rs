@@ -1,9 +1,11 @@
 //! API types for each path
 
-use crate::{Paste, SystemTime, Visibility};
+use std::time::Duration;
+
 use mime::Mime;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+
+use crate::{Paste, SystemTime, Visibility};
 
 /// `MsgPack` Body payload for POST `/api/paste` endpoint
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

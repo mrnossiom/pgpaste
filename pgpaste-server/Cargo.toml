@@ -1,39 +1,37 @@
 [package]
 name = "pgpaste-server"
 description = "The actual pgpaste server"
-repository = "https://github.com/MrNossiom/pgpaste"
+version = "0.0.0"
+edition = "2024"
+
+repository = "https://github.com/mrnossiom/pgpaste"
 readme = "../README.md"
 keywords = ["pgpaste", "paste", "server"]
 categories = ["web-programming::http-server"]
-version = "0.0.0"
-edition = "2021"
 license = "CECILL-B"
 publish = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-anyhow = "1.0.71"
-axum = { version = "0.6.18", features = ["tracing", "macros"] }
-bytes = "1.4.0"
-diesel = { version = "2.1.0", features = ["postgres"] }
-diesel-async = { version = "0.3.1", features = ["postgres", "deadpool"] }
-diesel_migrations = { version = "2.1.0", features = ["postgres"] }
-dotenvy = "0.15.7"
-eyre = "0.6.8"
-mime = "0.3.17"
-petname = { version = "1.1.3", default-features = false, features = [
-	"default_dictionary",
-	"std_rng",
-] }
-pgpaste-api-types = { workspace = true }
-rmp-serde = "1.1.1"
-secrecy = "0.8.0"
-sequoia-net = "0.27.0"
-sequoia-openpgp = "1.16.0"
-serde = "1.0.164"
-thiserror = "1.0.40"
-tokio = { version = "1.28.2", features = ["full"] }
-tower-http = { version = "0.4.0", features = ["tracing", "trace"] }
-tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+pgpaste-api-types.workspace = true
+
+sequoia-net.workspace = true
+sequoia-openpgp.workspace = true
+
+anyhow = "1"
+axum = { version = "0.8", features = ["tracing", "macros"] }
+bytes = "1"
+diesel = { version = "2", features = ["postgres"] }
+diesel-async = { version = "0.5", features = ["postgres", "deadpool"] }
+diesel_migrations = { version = "2", features = ["postgres"] }
+dotenvy = "0.15"
+eyre = "0.6"
+mime = "0.3"
+petname = "2"
+rmp-serde = "1"
+secrecy = "0.10"
+serde = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["tracing", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

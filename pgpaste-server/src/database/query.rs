@@ -3,17 +3,18 @@
 
 //! Small bits of `Diesel` queries to reuse across the project
 
-use super::{
-	models::{NewPaste, NewPublicKey, Paste, PublicKey},
-	prelude::*,
-	schema::{pastes, public_keys},
-};
 use diesel::{
 	dsl::{insert_into, now},
 	helper_types::{Eq, Filter, Gt, LtEq},
 	query_builder::InsertStatement,
 };
 use sequoia_openpgp::Fingerprint;
+
+use super::{
+	models::{NewPaste, NewPublicKey, Paste, PublicKey},
+	prelude::*,
+	schema::{pastes, public_keys},
+};
 
 impl PublicKey<'_> {
 	/// Select a public key from his `fingerprint`

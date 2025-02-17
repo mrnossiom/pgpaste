@@ -1,16 +1,17 @@
 //! CLI definition
 
-use clap::{value_parser, Args, Parser, Subcommand};
+use std::{
+	io::{IsTerminal, Read, stdin, stdout},
+	path::PathBuf,
+	time::Duration,
+};
+
+use clap::{Args, Parser, Subcommand, value_parser};
 use clap_complete::Shell;
 use duration_human::DurationHuman;
 use mime::Mime;
 use pgpaste_api_types::Visibility;
-use sequoia_openpgp::{crypto::Password, KeyHandle};
-use std::{
-	io::{stdin, stdout, IsTerminal, Read},
-	path::PathBuf,
-	time::Duration,
-};
+use sequoia_openpgp::{KeyHandle, crypto::Password};
 
 /// A `PasteBin` like service that lays on encryption
 #[derive(Debug, Parser)]

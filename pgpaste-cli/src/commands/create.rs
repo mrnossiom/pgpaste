@@ -1,17 +1,18 @@
 //! Implementation of the `create` subcommand
 
+use eyre::ContextCompat;
+use pgpaste_api_types::{
+	Visibility,
+	api::{CreateBody, CreateResponse},
+};
+use reqwest::{Method, StatusCode, Url, blocking::Client, header};
+use rpassword::prompt_password;
+
 use crate::{
 	args::CreateArgs,
 	config::Config,
-	crypto::{encrypt, protect, sign, SendHelper},
+	crypto::{SendHelper, encrypt, protect, sign},
 };
-use eyre::ContextCompat;
-use pgpaste_api_types::{
-	api::{CreateBody, CreateResponse},
-	Visibility,
-};
-use reqwest::{blocking::Client, header, Method, StatusCode, Url};
-use rpassword::prompt_password;
 
 // TODO: fix the need to enter the password two times for private pastes
 

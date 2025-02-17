@@ -6,15 +6,18 @@ run-cli *ARGS:
 	cargo run --bin pgpaste -- --config pgpaste-cli/config.toml {{ARGS}}
 
 # Run the server
-run-server:
-	cargo run --bin pgpaste-server
+run-server *ARGS:
+	cargo run --bin pgpaste-server {{ARGS}}
+
+fmt:
+	cargo fmt -- --config "group_imports=StdExternalCrate"
 
 # Starts the docker compose file with the provided scope
-up SCOPE:
-	docker compose --file docker-compose.{{SCOPE}}.yaml up -d
+up:
+	docker compose --file docker-compose.local.yaml up -d
 # Stops the docker compose file with the provided scope
-down SCOPE:
-	docker compose --file docker-compose.{{SCOPE}}.yaml down
+down:
+	docker compose --file docker-compose.local.yaml down
 # Builds the docker image with the provided tag
 build TAG *ARGS:
 	docker build . -t ghcr.io/mrnossiom/pgpaste-server:{{TAG}} {{ARGS}}

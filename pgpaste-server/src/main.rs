@@ -1,18 +1,12 @@
 //! `pgpaste` server
 
-#![warn(
-	missing_docs,
-	clippy::missing_docs_in_private_items,
-	clippy::print_literal,
-	clippy::unwrap_used,
-	clippy::nursery,
-	clippy::pedantic,
-	clippy::cargo,
-	rustdoc::broken_intra_doc_links
-)]
-#![allow(clippy::redundant_pub_crate)]
-
 use std::fmt::Display;
+
+use axum::Router;
+use eyre::Context;
+use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{EnvFilter, Registry, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
 	api::api_router,
@@ -20,10 +14,6 @@ use crate::{
 	routes::pastes_router,
 	routines::setup_routines,
 };
-use axum::{Router, Server};
-use eyre::Context;
-use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 mod api;
 mod config;
@@ -62,9 +52,13 @@ async fn main() -> eyre::Result<()> {
 	setup_routines(state).await?;
 
 	tracing::debug!("Starting server");
-	Server::bind(&"0.0.0.0:3000".parse()?)
-		.serve(app.into_make_service())
-		.await?;
+	let listener = TcpListener::bind("0.0.0.0:3000")
+		.await
+		.wrap_err("could not bind to the specified interface")?;
+
+	axum::serve(listener, app)
+		.await
+		.wrap_err("there was an error while serving the router")?;
 
 	Ok(())
 }

@@ -1,11 +1,12 @@
 //! API routes and handlers
 
-use crate::AppState;
 use axum::{
 	extract::DefaultBodyLimit,
 	http::StatusCode,
-	routing::{get, post, Router},
+	routing::{Router, get, post},
 };
+
+use crate::AppState;
 
 mod create;
 mod read;
@@ -29,33 +30,27 @@ pub(crate) fn api_router() -> Router<AppState> {
 /// Custom axum extractors
 mod extract {
 	use axum::{
-		async_trait,
-		body::{Bytes, HttpBody},
-		extract::{rejection::BytesRejection, FromRequest},
-		http::{header, HeaderMap, HeaderValue, Request, StatusCode},
+		body::Bytes,
+		extract::{FromRequest, Request, rejection::BytesRejection},
+		http::{HeaderMap, HeaderValue, StatusCode, header},
 		response::{IntoResponse, Response},
-		BoxError,
 	};
 	use bytes::Buf;
-	use rmp_serde::{to_vec, Deserializer};
-	use sequoia_openpgp::{parse::Parse, Message};
-	use serde::{de::DeserializeOwned, Serialize};
+	use rmp_serde::{Deserializer, to_vec};
+	use sequoia_openpgp::{Message, parse::Parse};
+	use serde::{Serialize, de::DeserializeOwned};
 
 	/// Axum extractor for `MsgPack` blobs
 	pub struct MsgPack<T>(pub T);
 
-	#[async_trait]
-	impl<T, S, B> FromRequest<S, B> for MsgPack<T>
+	impl<T, S> FromRequest<S> for MsgPack<T>
 	where
 		T: DeserializeOwned,
-		B: HttpBody + Send + 'static,
-		B::Data: Send,
-		B::Error: Into<BoxError>,
 		S: Send + Sync,
 	{
 		type Rejection = MsgPackRejection;
 
-		async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+		async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
 			if !has_msgpack_content_type(req.headers()) {
 				return Err(MsgPackRejection::MissingMsgPackContentType);
 			}
@@ -71,13 +66,18 @@ mod extract {
 
 	/// Whether the request has a msgpack content type
 	fn has_msgpack_content_type(headers: &HeaderMap) -> bool {
-		let Some(content_type) = headers.get(header::CONTENT_TYPE) else { return false; };
-		let Ok(content_type) = content_type.to_str() else { return false; };
-		let Ok(mime) = content_type.parse::<mime::Mime>() else { return false; };
+		let Some(content_type) = headers.get(header::CONTENT_TYPE) else {
+			return false;
+		};
+		let Ok(content_type) = content_type.to_str() else {
+			return false;
+		};
+		let Ok(mime) = content_type.parse::<mime::Mime>() else {
+			return false;
+		};
 
 		mime.type_() == "application"
-			&& (mime.subtype() == "msgpack"
-				|| mime.suffix().map_or(false, |name| name == "msgpack"))
+			&& (mime.subtype() == "msgpack" || mime.suffix().is_some_and(|name| name == "msgpack"))
 	}
 
 	impl<T> From<T> for MsgPack<T>
@@ -158,17 +158,13 @@ mod extract {
 	/// Axum extractor for `OpenPGP` messages
 	pub struct PgpMessage(pub Message);
 
-	#[async_trait]
-	impl<S, B> FromRequest<S, B> for PgpMessage
+	impl<S> FromRequest<S> for PgpMessage
 	where
-		B: HttpBody + Send + 'static,
-		B::Data: Send,
-		B::Error: Into<BoxError>,
 		S: Send + Sync,
 	{
 		type Rejection = PgpMessageRejection;
 
-		async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+		async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
 			if !has_pgp_signature_content_type(req.headers()) {
 				return Err(PgpMessageRejection::MissingContentType);
 			}
@@ -182,9 +178,15 @@ mod extract {
 
 	/// Whether the request has a msgpack content type
 	fn has_pgp_signature_content_type(headers: &HeaderMap) -> bool {
-		let Some(content_type) = headers.get(header::CONTENT_TYPE) else { return false; };
-		let Ok(content_type) = content_type.to_str() else { return false; };
-		let Ok(mime) = content_type.parse::<mime::Mime>() else { return false; };
+		let Some(content_type) = headers.get(header::CONTENT_TYPE) else {
+			return false;
+		};
+		let Ok(content_type) = content_type.to_str() else {
+			return false;
+		};
+		let Ok(mime) = content_type.parse::<mime::Mime>() else {
+			return false;
+		};
 
 		mime.type_() == "application" && mime.subtype() == "pgp-signature"
 	}

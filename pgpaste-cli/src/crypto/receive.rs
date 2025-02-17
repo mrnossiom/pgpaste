@@ -1,25 +1,26 @@
 //! Decrypting and verifying messages
 
-use super::POLICY;
-use crate::ToEyreError;
+use std::{collections::HashMap, io};
+
 use sequoia_openpgp::{
+	Cert, Fingerprint, KeyHandle, KeyID,
 	crypto::{self, Decryptor, SessionKey},
 	packet::{
-		self,
+		self, Key,
 		key::{SecretParts, UnspecifiedRole},
-		Key,
 	},
 	parse::{
+		Parse,
 		stream::{
 			DecryptionHelper, DecryptorBuilder, MessageLayer, MessageStructure, VerificationHelper,
 			VerifierBuilder,
 		},
-		Parse,
 	},
 	types::SymmetricAlgorithm,
-	Cert, Fingerprint, KeyHandle, KeyID,
 };
-use std::{collections::HashMap, io};
+
+use super::POLICY;
+use crate::ToEyreError;
 
 /// Verify the given message with the given helper.
 pub(crate) fn verify(message: &[u8], helper: ReceiveHelper) -> eyre::Result<Vec<u8>> {
@@ -91,7 +92,7 @@ impl<'a> ReceiveHelper<'a> {
 					.to_wrap_err("cert does not contain secret keys")?;
 
 				log::debug!("found secret key: {secret_key}");
-				hints.insert(ka.keyid(), identity.clone());
+				hints.insert(ka.key().keyid(), identity.clone());
 				secrets.insert(ka.key().keyid(), secret_key.clone());
 			}
 		}
@@ -117,18 +118,14 @@ impl<'a> ReceiveHelper<'a> {
 			.decrypt(&mut *keypair, sym_algo)
 			.and_then(
 				|(algo, sk)| {
-					if decrypt(algo, &sk) {
-						Some(sk)
-					} else {
-						None
-					}
+					if decrypt(algo, &sk) { Some(sk) } else { None }
 				},
 			)
 			.map(|_sk| keypair.public().fingerprint())
 	}
 }
 
-impl<'a> VerificationHelper for ReceiveHelper<'a> {
+impl VerificationHelper for ReceiveHelper<'_> {
 	fn get_certs(&mut self, ids: &[KeyHandle]) -> sequoia_openpgp::Result<Vec<Cert>> {
 		let concerned_certs = self
 			.public_certs
@@ -163,7 +160,7 @@ impl<'a> VerificationHelper for ReceiveHelper<'a> {
 }
 
 #[allow(clippy::similar_names)]
-impl<'a> DecryptionHelper for ReceiveHelper<'a> {
+impl DecryptionHelper for ReceiveHelper<'_> {
 	fn decrypt<D>(
 		&mut self,
 		pkesks: &[packet::PKESK],
@@ -236,11 +233,7 @@ impl<'a> DecryptionHelper for ReceiveHelper<'a> {
 
 			for skesk in skesks {
 				if let Some(_sk) = skesk.decrypt(&password).ok().and_then(|(algo, sk)| {
-					if decrypt(algo, &sk) {
-						Some(sk)
-					} else {
-						None
-					}
+					if decrypt(algo, &sk) { Some(sk) } else { None }
 				}) {
 					return Ok(None);
 				}

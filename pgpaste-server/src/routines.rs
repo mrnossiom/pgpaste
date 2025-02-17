@@ -1,10 +1,11 @@
 //! Routines (background tasks that run periodically)
 
+use tokio::{task::JoinHandle, time::Duration};
+
 use crate::{
 	config::AppState,
 	database::{models::Paste, prelude::*},
 };
-use tokio::{task::JoinHandle, time::Duration};
 
 /// Setup all routines
 pub(crate) async fn setup_routines(state: AppState) -> eyre::Result<()> {

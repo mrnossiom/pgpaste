@@ -1,11 +1,7 @@
 //! Routes handlers for reading pastes
 
-use super::extract::MsgPack;
-use crate::{
-	database::{models::Paste, prelude::*},
-	error::{ServerError, UserServerError},
-	AppState,
-};
+use std::time::SystemTime;
+
 use axum::{
 	extract::{Path, State},
 	http::StatusCode,
@@ -13,7 +9,13 @@ use axum::{
 };
 use eyre::Context;
 use pgpaste_api_types::api::ReadResponse;
-use std::time::SystemTime;
+
+use super::extract::MsgPack;
+use crate::{
+	AppState,
+	database::{models::Paste, prelude::*},
+	error::{ServerError, UserServerError},
+};
 
 #[tracing::instrument(skip(state))]
 pub(crate) async fn get_paste(
@@ -27,8 +29,8 @@ pub(crate) async fn get_paste(
 		.first::<Paste>(&mut conn)
 		.await
 		.optional()
-		.wrap_err("Failed to load paste")? else
-	{
+		.wrap_err("Failed to load paste")?
+	else {
 		return Err(UserServerError::PasteNotFound.into());
 	};
 

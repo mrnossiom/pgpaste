@@ -1,21 +1,11 @@
 //! `pgpaste` command line interface
 
-#![warn(
-	missing_docs,
-	clippy::missing_docs_in_private_items,
-	clippy::unwrap_used,
-	clippy::nursery,
-	clippy::pedantic,
-	clippy::cargo,
-	rustdoc::broken_intra_doc_links
-)]
-#![allow(clippy::redundant_pub_crate)]
+use std::{fmt::Display, io};
 
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use config::Config;
 use eyre::Context;
-use std::{fmt::Display, io};
 
 mod args;
 mod commands;
